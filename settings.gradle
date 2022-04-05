@@ -1,0 +1,6 @@
+rootProject.name = "auto-service-android"
+include ':app'
+//include ':auto-service-annotation'
+//include ':auto-service-registry'
+//include ':auto-service-loader'
+//include ':auto-service-plugin'
