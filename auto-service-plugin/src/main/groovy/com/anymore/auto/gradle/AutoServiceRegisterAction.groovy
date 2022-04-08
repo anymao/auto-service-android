@@ -11,6 +11,7 @@ import javassist.bytecode.annotation.Annotation
 import javassist.bytecode.annotation.ArrayMemberValue
 import javassist.bytecode.annotation.ClassMemberValue
 import javassist.bytecode.annotation.IntegerMemberValue
+import org.gradle.api.GradleException
 import org.gradle.api.file.FileCollection
 import org.gradle.api.tasks.TaskAction
 import org.jetbrains.annotations.NotNull
@@ -27,10 +28,12 @@ class AutoServiceRegisterAction {
     final FileCollection classpath
     final File targetDir
     private final ClassPool classPool
+    private final Set<String> requiredServices
 
-    AutoServiceRegisterAction(FileCollection classpath, File targetDir) {
+    AutoServiceRegisterAction(FileCollection classpath, File targetDir,Set<String> requiredServices) {
         this.classpath = classpath
         this.targetDir = targetDir
+        this.requiredServices = requiredServices
         classPool = new ClassPool(true) {
             @Override
             ClassLoader getClassLoader() {
@@ -219,11 +222,9 @@ class AutoServiceRegisterAction {
             elements.each { entry ->
                 final serviceType = ClassName.bestGuess(entry.key)
                 final queue = entry.value
-                Logger.tell(String.format("Service:%s", serviceType.toString()))
                 while (!queue.isEmpty()) {
                     final element = queue.poll()
                     final implType = ClassName.bestGuess(element.name)
-                    Logger.tell(String.format("Impls:%s", implType.toString()))
                     final callable = TypeSpec.anonymousClassBuilder("")
                             .addSuperinterface(ParameterizedTypeName.get(ClassName.get(Callable), serviceType))
                             .addMethod(
@@ -237,7 +238,6 @@ class AutoServiceRegisterAction {
                             ).build()
                     builder.addStatement("register(\$T.class,\$L)", serviceType, callable)
                 }
-                Logger.tell("------------------------------------------------")
             }
             builder.build()
         }
@@ -254,13 +254,32 @@ class AutoServiceRegisterAction {
                 .build()
     }
 
+    private Collection<String> preCheckRequiredServices(Set<String> services,Set<String> implementedServices){
+        final result = new LinkedList<String>()
+        services.each {
+            if (!implementedServices.contains(it)){
+                result.add(it)
+            }
+        }
+        return result
+    }
+
 
     @TaskAction
     boolean execute() throws Exception {
         final startTime = System.currentTimeMillis()
         final result = loadAutoServices(load())
+        if (!requiredServices.isEmpty()){
+            final checkResult = preCheckRequiredServices(requiredServices,result.keySet())
+            if (!checkResult.isEmpty()){
+                checkResult.each {
+                    Logger.e("require service $it but has no implementation,please check!")
+                }
+                throw new GradleException("please check autoService required service!")
+            }
+        }
         makeServiceRegistryFile(result)
-        Logger.tell("use time:${(System.currentTimeMillis() - startTime) / 1000}s")
+        Logger.tell("used time:${(System.currentTimeMillis() - startTime) / 1000}s")
         return true
     }
 

@@ -2,8 +2,12 @@ plugins {
     id 'java-library'
     id 'kotlin'
 }
+apply from:"../maven_publish.gradle"
 
 java {
     sourceCompatibility = JavaVersion.VERSION_1_7
     targetCompatibility = JavaVersion.VERSION_1_7
 }
+
+group 'com.anymore'
+version '0.0.1-SNAPSHOT'

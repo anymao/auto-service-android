@@ -1,5 +1,7 @@
 //import com.anymore.auto.gradle.AutoServiceRegisterPlugin
 
+import java.util.concurrent.Callable
+
 plugins {
     id 'com.android.application'
     id 'kotlin-android'
@@ -48,6 +50,12 @@ android {
 //    }
 }
 
+autoService {
+    checkImplementation=true
+    require(Runnable.class.name)
+    require(Callable.class.name)
+}
+
 dependencies {
 
     implementation "org.jetbrains.kotlin:kotlin-stdlib:$kotlin_version"
@@ -55,7 +63,7 @@ dependencies {
     implementation 'androidx.appcompat:appcompat:1.2.0'
     implementation 'com.google.android.material:material:1.2.1'
     implementation 'androidx.constraintlayout:constraintlayout:2.0.1'
-    api("com.anymore:auto-service-loader:0.0.1")
+    api("com.anymore:auto-service-loader:0.0.2")
 
     testImplementation 'junit:junit:4.+'
     androidTestImplementation 'androidx.test.ext:junit:1.1.2'

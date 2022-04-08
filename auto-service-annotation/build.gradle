@@ -3,6 +3,7 @@ plugins {
     id 'kotlin'
     id 'maven'
 }
+apply from:"../maven_publish.gradle"
 
 java {
     sourceCompatibility = JavaVersion.VERSION_1_8
@@ -13,44 +14,5 @@ dependencies {
     implementation "org.jetbrains.kotlin:kotlin-stdlib:$kotlin_version"
 }
 
-task javadocJar(type: Jar, dependsOn: javadoc) {
-    classifier = 'javadoc'
-    from 'build/docs/javadoc'
-}
-
-task sourcesJar(type: Jar) {
-    from sourceSets.main.allSource
-    classifier = 'sources'
-}
-
-artifacts {
-    archives jar
-    archives javadocJar
-    archives sourcesJar
-}
-
 group 'com.anymore'
-version '0.0.1'
-def artifactId = 'auto-service-annotation'
-
-uploadArchives {
-    repositories {
-        mavenDeployer {
-            repository(url: 'https://packages.aliyun.com/maven/repository/2202395-release-jr0puW/') {
-                authentication(
-                        username: "$aliyun_username",
-                        password: "$aliyun_password"
-                )
-            }
-            snapshotRepository(url: 'https://packages.aliyun.com/maven/repository/2202395-snapshot-3OoSzj/') {
-                authentication(
-                        username: "$aliyun_username",
-                        password: "$aliyun_password"
-                )
-            }
-            pom.version = project.version
-            pom.artifactId = artifactId
-            pom.groupId = project.group
-        }
-    }
-}
+version '0.0.2'

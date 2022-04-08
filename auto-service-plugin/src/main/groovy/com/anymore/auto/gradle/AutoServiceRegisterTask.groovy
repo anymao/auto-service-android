@@ -11,10 +11,10 @@ class AutoServiceRegisterTask extends DefaultTask {
 
     private FileCollection classpath
     private File targetDir
+    private Set<String> requiredServices
 
     AutoServiceRegisterTask() {
-//        classpath = getProject().files()
-//        Logger.d("TaskInit:${getProject().files().asPath}")
+        requiredServices = new HashSet<>()
     }
 
     void setTargetDir(File dir) {
@@ -25,9 +25,13 @@ class AutoServiceRegisterTask extends DefaultTask {
         this.classpath = classpath
     }
 
+    void setRequiredServices(Set<String> requiredServices) {
+        this.requiredServices = requiredServices
+    }
+
 
     @TaskAction
     void run() {
-        didWork(new AutoServiceRegisterAction(classpath, targetDir).execute())
+        didWork(new AutoServiceRegisterAction(classpath, targetDir,requiredServices).execute())
     }
 }

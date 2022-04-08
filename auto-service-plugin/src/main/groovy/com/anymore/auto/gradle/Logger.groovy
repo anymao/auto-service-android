@@ -11,6 +11,10 @@ class Logger {
         println(String.format("$tag$message"))
     }
 
+    static void e(String message){
+        System.err.println(String.format("$tag$message"))
+    }
+
     static void tell(String message){
         println(String.format("$tag$message"))
     }

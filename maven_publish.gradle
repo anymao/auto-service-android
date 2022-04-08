@@ -1,0 +1,42 @@
+apply plugin: 'maven'
+
+afterEvaluate {
+
+//    task javadocJar(type: Jar, dependsOn: javadoc) {
+//        classifier = 'javadoc'
+//        from 'build/docs/javadoc'
+//    }
+
+    task sourcesJar(type: Jar) {
+        from sourceSets.main.allSource
+        classifier = 'sources'
+    }
+
+    artifacts {
+        archives jar
+//        archives javadocJar
+        archives sourcesJar
+    }
+
+    uploadArchives {
+        repositories {
+            mavenDeployer {
+                repository(url: 'https://packages.aliyun.com/maven/repository/2202395-release-jr0puW/') {
+                    authentication(
+                            userName: "$maven_username",
+                            password: "$maven_password"
+                    )
+                }
+                snapshotRepository(url: 'https://packages.aliyun.com/maven/repository/2202395-snapshot-3OoSzj/') {
+                    authentication(
+                            userName: "$maven_username",
+                            password: "$maven_password"
+                    )
+                }
+                pom.version = project.version
+                pom.artifactId = artifactId
+                pom.groupId = project.group
+            }
+        }
+    }
+}
