@@ -1,14 +1,8 @@
-//import com.anymore.auto.gradle.AutoServiceRegisterPlugin
-
-import java.util.concurrent.Callable
-
 plugins {
     id 'com.android.application'
     id 'kotlin-android'
     id 'auto-service'
 }
-
-//apply plugin: AutoServiceRegisterPlugin
 
 android {
     compileSdkVersion 30
@@ -53,7 +47,7 @@ android {
 autoService {
     checkImplementation=true
     require(Runnable.class.name)
-    require(Callable.class.name)
+    require("java.util.concurrent.Callable")
 }
 
 dependencies {

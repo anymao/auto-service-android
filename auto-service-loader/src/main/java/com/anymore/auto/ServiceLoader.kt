@@ -17,7 +17,7 @@ class ServiceLoader<T> private constructor(private val clazz: Class<T>) : Iterab
     /**
      * 获取最优先的 priority最小的那个实现
      */
-    val firstPriority get() = first()
+    val firstPriority get() = firstOrNull()
 
     /**
      * 同[firstPriority],但是如果此接口没有一个实现的时候会抛出异常
@@ -36,7 +36,7 @@ class ServiceLoader<T> private constructor(private val clazz: Class<T>) : Iterab
     /**
      * 获取最不优先的 priority最大的那个实现
      */
-    val lastPriority get() = last()
+    val lastPriority get() = lastOrNull()
 
     /**
      * 同[lastPriority],但是如果此接口没有一个实现的时候会抛出异常
