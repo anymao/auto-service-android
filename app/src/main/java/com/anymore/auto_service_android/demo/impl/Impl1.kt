@@ -6,7 +6,7 @@ import com.anymore.auto.AutoService
 /**
  * Created by anymore on 2022/4/3.
  */
-@AutoService(Runnable::class)
+@AutoService(Runnable::class,alias = "lym")
 class Impl1:Runnable {
     override fun run() {
         Log.e("lym","impl1")

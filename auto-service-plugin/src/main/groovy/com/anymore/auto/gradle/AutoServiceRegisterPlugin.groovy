@@ -21,7 +21,7 @@ class AutoServiceRegisterPlugin implements Plugin<Project> {
                 final registerTask = project.tasks.create("androidAutoServiceRegisterTask${variant.name.capitalize()}", AutoServiceRegisterTask.class) {
                     it.setClasspath(classpath)
                     it.setTargetDir(new File(workDir, "src"))
-                    if (autoServiceExtension.checkImplementation){
+                    if (autoServiceExtension.checkImplementation) {
                         it.setRequiredServices(autoServiceExtension.requireServices)
                     }
 

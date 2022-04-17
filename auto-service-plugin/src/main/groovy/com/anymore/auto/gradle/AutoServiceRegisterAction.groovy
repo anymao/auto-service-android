@@ -1,5 +1,6 @@
 package com.anymore.auto.gradle
 
+
 import com.anymore.auto.AutoService
 import com.squareup.javapoet.*
 import javassist.ClassPool
@@ -7,17 +8,13 @@ import javassist.CtClass
 import javassist.Loader
 import javassist.bytecode.AnnotationsAttribute
 import javassist.bytecode.ClassFile
-import javassist.bytecode.annotation.Annotation
-import javassist.bytecode.annotation.ArrayMemberValue
-import javassist.bytecode.annotation.ClassMemberValue
-import javassist.bytecode.annotation.IntegerMemberValue
+import javassist.bytecode.annotation.*
 import org.gradle.api.GradleException
 import org.gradle.api.file.FileCollection
 import org.gradle.api.tasks.TaskAction
 import org.jetbrains.annotations.NotNull
 
 import javax.lang.model.element.Modifier
-import java.util.concurrent.Callable
 import java.util.function.Function
 import java.util.jar.JarFile
 
@@ -30,7 +27,7 @@ class AutoServiceRegisterAction {
     private final ClassPool classPool
     private final Set<String> requiredServices
 
-    AutoServiceRegisterAction(FileCollection classpath, File targetDir,Set<String> requiredServices) {
+    AutoServiceRegisterAction(FileCollection classpath, File targetDir, Set<String> requiredServices) {
         this.classpath = classpath
         this.targetDir = targetDir
         this.requiredServices = requiredServices
@@ -101,6 +98,14 @@ class AutoServiceRegisterAction {
                     p = 0
                 }
                 final priority = p
+                final am = (StringMemberValue) autoServiceAnnotation.getMemberValue("alias")
+                String a
+                if (am != null) {
+                    a = am.value
+                } else {
+                    a = ""
+                }
+                final alias = a
                 serviceClasses.value.each { mv ->
                     final cm = (ClassMemberValue) mv
                     result.computeIfAbsent(cm.value, new Function<String, Queue<Element>>() {
@@ -108,7 +113,7 @@ class AutoServiceRegisterAction {
                         Queue<Element> apply(String s) {
                             return new PriorityQueue<Element>()
                         }
-                    }).offer(Element.create(ctClass.name, priority))
+                    }).offer(Element.create(ctClass.name, priority, alias))
                 }
             }
         }
@@ -141,15 +146,17 @@ class AutoServiceRegisterAction {
         //Class<?>
         final WildcardTypeName anyType = WildcardTypeName.subtypeOf(Object.class)
         final TypeVariableName typeOfS = TypeVariableName.get("S")
+        //ServiceFactory
+        final ClassName serviceSupplierClassName = ClassName.get(pkg, "ServiceSupplier")
 
         final serviceCreatorsField = FieldSpec.builder(
                 ParameterizedTypeName.get(ClassName.get(Map.class),
                         ParameterizedTypeName.get(ClassName.get(Class.class), anyType),
                         ParameterizedTypeName.get(ClassName.get(List.class), ParameterizedTypeName.get(
-                                ClassName.get(Callable.class), anyType
+                                serviceSupplierClassName, anyType
                         ))
                 ),
-                "serviceCreators",
+                "serviceSuppliers",
                 Modifier.PRIVATE, Modifier.STATIC, Modifier.FINAL
         ).initializer("new \$T<>()", LinkedHashMap.class)
                 .build()
@@ -158,7 +165,7 @@ class AutoServiceRegisterAction {
                         ParameterizedTypeName.get(
                                 ClassName.get(Function.class),
                                 ParameterizedTypeName.get(ClassName.get(Class.class), anyType),
-                                ParameterizedTypeName.get(ClassName.get(List.class), ParameterizedTypeName.get(ClassName.get(Callable.class), anyType))
+                                ParameterizedTypeName.get(ClassName.get(List.class), ParameterizedTypeName.get(serviceSupplierClassName, anyType))
                         )
                 )
                 .addMethod(
@@ -167,7 +174,7 @@ class AutoServiceRegisterAction {
                                 .addAnnotation(Override.class)
                                 .addParameter(ParameterizedTypeName.get(ClassName.get(Class.class), anyType), "c")
                                 .addStatement("return new \$T<>()", LinkedList.class)
-                                .returns(ParameterizedTypeName.get(ClassName.get(List.class), ParameterizedTypeName.get(ClassName.get(Callable.class), anyType)))
+                                .returns(ParameterizedTypeName.get(ClassName.get(List.class), ParameterizedTypeName.get(serviceSupplierClassName, anyType)))
                                 .build()
                 ).build()
         final registerMethod = MethodSpec.methodBuilder("register")
@@ -181,11 +188,11 @@ class AutoServiceRegisterAction {
                 )
                 .addParameter(
                         ParameterSpec.builder(
-                                ParameterizedTypeName.get(ClassName.get(Callable.class), typeOfS),
-                                "creator"
+                                ParameterizedTypeName.get(serviceSupplierClassName, typeOfS),
+                                "supplier"
                         ).build()
                 )
-                .addStatement("serviceCreators.computeIfAbsent(\$N,\$L).add(creator)", "clazz", function)
+                .addStatement("serviceSuppliers.computeIfAbsent(\$N,\$L).add(supplier)", "clazz", function)
                 .returns(TypeName.VOID)
                 .build()
 
@@ -196,17 +203,30 @@ class AutoServiceRegisterAction {
                         ParameterizedTypeName.get(ClassName.get(Class.class), typeOfS),
                         "clazz"
                 ).build())
+                .addParameter(ParameterSpec.builder(String.class, "alias").build())
                 .addCode(CodeBlock.builder()
-                        .addStatement("final \$T<\$T<?>> creators = serviceCreators.getOrDefault(clazz, new \$T<\$T<?>>())",
-                                List.class, Callable.class, ArrayList.class, Callable.class
+                        .addStatement("final \$T<\$T<\$T>> allSuppliers = serviceSuppliers.getOrDefault(clazz, new \$T<\$T<\$T>>())",
+                                List.class, serviceSupplierClassName, anyType, ArrayList.class, serviceSupplierClassName, anyType
                         )
-                        .addStatement("final \$T<\$T> services = new \$T<>(creators.size())",
+                        .addStatement("final \$T<\$T<\$T>> suppliers = new \$T<>()", List.class, serviceSupplierClassName, anyType, LinkedList.class)
+                        .add(CodeBlock.builder()
+                                .beginControlFlow("if (alias != null && alias.length() > 0)")
+                                .beginControlFlow("for (\$T<\$T> supplier:allSuppliers)", serviceSupplierClassName, anyType)
+                                .beginControlFlow("if (supplier.getAlias() == alias)")
+                                .addStatement("suppliers.add(supplier)")
+                                .endControlFlow()
+                                .endControlFlow()
+                                .nextControlFlow("else")
+                                .addStatement("suppliers.addAll(allSuppliers)")
+                                .endControlFlow()
+                                .build())
+                        .addStatement("final \$T<\$T> services = new \$T<>(suppliers.size())",
                                 List.class, typeOfS, ArrayList.class
                         )
-                        .beginControlFlow("if (!creators.isEmpty())")
-                        .beginControlFlow("for (\$T<?> creator : creators)", Callable.class)
+                        .beginControlFlow("if (!suppliers.isEmpty())")
+                        .beginControlFlow("for (\$T<\$T> supplier : suppliers)", serviceSupplierClassName, anyType)
                         .beginControlFlow("try")
-                        .addStatement("services.add((\$T) creator.call())", typeOfS)
+                        .addStatement("services.add((\$T) supplier.get())", typeOfS)
                         .nextControlFlow("catch (\$T e)", Exception.class)
                         .addStatement("throw new \$T(\$T.format(\"create class %s error!\", clazz.getCanonicalName()), e)", ServiceConfigurationError.class, String.class)
                         .endControlFlow()
@@ -225,13 +245,12 @@ class AutoServiceRegisterAction {
                 while (!queue.isEmpty()) {
                     final element = queue.poll()
                     final implType = ClassName.bestGuess(element.name)
-                    final callable = TypeSpec.anonymousClassBuilder("")
-                            .addSuperinterface(ParameterizedTypeName.get(ClassName.get(Callable), serviceType))
+                    final callable = TypeSpec.anonymousClassBuilder("\$S", element.alias)
+                            .addSuperinterface(ParameterizedTypeName.get(serviceSupplierClassName, serviceType))
                             .addMethod(
-                                    MethodSpec.methodBuilder("call")
+                                    MethodSpec.methodBuilder("get")
                                             .addAnnotation(Override.class)
                                             .addModifiers(Modifier.PUBLIC)
-                                            .addException(Exception.class)
                                             .addStatement("return new \$T()", implType)
                                             .returns(serviceType)
                                             .build()
@@ -243,6 +262,7 @@ class AutoServiceRegisterAction {
         }
 
         final serviceRegistry = TypeSpec.classBuilder("ServiceRegistry")
+                .addJavadoc("Automatically generated file by auto-service. DO NOT MODIFY")
                 .addModifiers(Modifier.FINAL)
                 .addAnnotation(AnnotationSpec.builder(SuppressWarnings.class).addMember("value", "\$S", "unchecked").build())
                 .addField(serviceCreatorsField)
@@ -254,10 +274,10 @@ class AutoServiceRegisterAction {
                 .build()
     }
 
-    private Collection<String> preCheckRequiredServices(Set<String> services,Set<String> implementedServices){
+    private Collection<String> preCheckRequiredServices(Set<String> services, Set<String> implementedServices) {
         final result = new LinkedList<String>()
         services.each {
-            if (!implementedServices.contains(it)){
+            if (!implementedServices.contains(it)) {
                 result.add(it)
             }
         }
@@ -269,9 +289,9 @@ class AutoServiceRegisterAction {
     boolean execute() throws Exception {
         final startTime = System.currentTimeMillis()
         final result = loadAutoServices(load())
-        if (!requiredServices.isEmpty()){
-            final checkResult = preCheckRequiredServices(requiredServices,result.keySet())
-            if (!checkResult.isEmpty()){
+        if (!requiredServices.isEmpty()) {
+            final checkResult = preCheckRequiredServices(requiredServices, result.keySet())
+            if (!checkResult.isEmpty()) {
                 checkResult.each {
                     Logger.e("require service $it but has no implementation,please check!")
                 }
@@ -286,14 +306,16 @@ class AutoServiceRegisterAction {
     static class Element implements Comparable<Element> {
         final String name
         final int priority
+        final String alias
 
-        Element(String name, int priority) {
+        Element(String name, int priority, String alias) {
             this.name = name
             this.priority = priority
+            this.alias = alias
         }
 
-        static Element create(String name, int priority) {
-            return new Element(name, priority)
+        static Element create(String name, int priority, String alias) {
+            return new Element(name, priority, alias)
         }
 
         @Override
@@ -311,6 +333,7 @@ class AutoServiceRegisterAction {
             return "Element{" +
                     "name='" + name + '\'' +
                     ", priority=" + priority +
+                    ", alias='" + alias + '\'' +
                     '}';
         }
     }

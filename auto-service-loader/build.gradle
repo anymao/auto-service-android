@@ -6,17 +6,17 @@ plugins {
 apply from:"../maven_publish.gradle"
 
 java {
-    sourceCompatibility = JavaVersion.VERSION_1_7
-    targetCompatibility = JavaVersion.VERSION_1_7
+    sourceCompatibility = JavaVersion.VERSION_1_8
+    targetCompatibility = JavaVersion.VERSION_1_8
 }
 
 dependencies {
     implementation "org.jetbrains.kotlin:kotlin-stdlib:$kotlin_version"
-    api("com.anymore:auto-service-annotation:0.0.2")
-    compileOnly("com.anymore:auto-service-registry:0.0.1-SNAPSHOT")
+    api("com.anymore:auto-service-annotation:0.0.3")
+    compileOnly("com.anymore:auto-service-registry:0.0.2-SNAPSHOT")
 
 //    compileOnly project(path: ':auto-service-registry')
 }
 
 group 'com.anymore'
-version '0.0.2'
+version '0.0.3'

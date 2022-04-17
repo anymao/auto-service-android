@@ -24,7 +24,7 @@
        
        dependencies {
           // other code...
-           classpath("com.anymore:auto-service-register:0.0.2")
+           classpath("com.anymore:auto-service-register:0.0.3")
        }
    }
    
@@ -55,7 +55,7 @@
 3. 添加依赖
 
    ```groovy
-   api("com.anymore:auto-service-loader:0.0.2")
+   api("com.anymore:auto-service-loader:0.0.3")
    ```
 
 4. 定义接口的实现并使用@AutoService注解标记

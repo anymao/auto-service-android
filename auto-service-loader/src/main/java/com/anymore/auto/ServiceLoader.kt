@@ -1,16 +1,20 @@
 package com.anymore.auto
 
 
-class ServiceLoader<T> private constructor(private val clazz: Class<T>) : Iterable<T> {
+class ServiceLoader<T> private constructor(
+    private val clazz: Class<T>,
+    private val alias: String = ""
+) : Iterable<T> {
 
     companion object {
         @JvmStatic
-        fun <T> load(clazz: Class<T>) = ServiceLoader(clazz)
+        @JvmOverloads
+        fun <T> load(clazz: Class<T>, alias: String = "") = ServiceLoader(clazz, alias)
 
-        inline fun <reified T> load() = load(T::class.java)
+        inline fun <reified T> load(alias: String = "") = load(T::class.java, alias)
     }
 
-    private var services: List<T> = ServiceRegistry.get(clazz)
+    private var services: List<T> = ServiceRegistry.get(clazz, alias)
 
     override fun iterator(): Iterator<T> = services.iterator()
 
@@ -49,7 +53,7 @@ class ServiceLoader<T> private constructor(private val clazz: Class<T>) : Iterab
      * 重新加载,产生的新的实例
      */
     fun reload() {
-        services = ServiceRegistry.get(clazz)
+        services = ServiceRegistry.get(clazz, alias)
     }
 
 }
