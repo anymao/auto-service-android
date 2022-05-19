@@ -24,7 +24,7 @@
        
        dependencies {
           // other code...
-           classpath("com.anymore:auto-service-register:0.0.3")
+           classpath("com.anymore:auto-service-register:0.0.4")
        }
    }
    
@@ -55,13 +55,14 @@
 3. 添加依赖
 
    ```groovy
-   api("com.anymore:auto-service-loader:0.0.3")
+   api("com.anymore:auto-service-loader:0.0.4")
    ```
 
 4. 定义接口的实现并使用@AutoService注解标记
 
    ```kotlin
-   @AutoService(Runnable::class)
+   //单例实现Impl1
+   @AutoService(Runnable::class,singleton = true)
    class Impl1:Runnable {
        override fun run() {
            Log.e("lym","impl1")
@@ -101,6 +102,8 @@
    autoService {
        checkImplementation=true
        require(Runnable.class.name)
+       //检查Runnable接口且 alias="lym"的实现
+       require(Runnable.class.name,"lym")
        require("java.util.concurrent.Callable")
    }
    ```

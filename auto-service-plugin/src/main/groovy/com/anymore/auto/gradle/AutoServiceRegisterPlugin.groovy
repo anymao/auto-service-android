@@ -10,7 +10,7 @@ class AutoServiceRegisterPlugin implements Plugin<Project> {
 
     @Override
     void apply(Project project) {
-        final AutoServiceExtension autoServiceExtension = project.getExtensions().create("autoService", AutoServiceExtension.class, true, new HashSet<String>())
+        final AutoServiceExtension autoServiceExtension = project.getExtensions().create("autoService", AutoServiceExtension.class, true, new HashMap<String,Set<String>>())
         project.afterEvaluate {
             if (!project.plugins.hasPlugin(AppPlugin)) return
             final android = project.getExtensions().getByType(AppExtension.class)

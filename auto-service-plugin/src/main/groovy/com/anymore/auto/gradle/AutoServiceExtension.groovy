@@ -1,28 +1,35 @@
 package com.anymore.auto.gradle
 
+import java.util.function.Function
+
 /**
  * Created by anymore on 2022/4/8.
  */
 class AutoServiceExtension {
     boolean checkImplementation = false
-    private Set<String> requires = new HashSet<>()
+    private HashMap<String, Set<String>> requires = new LinkedHashMap<>()
 
-    AutoServiceExtension(boolean checkImplementation, Set<String> requires) {
+    AutoServiceExtension(boolean checkImplementation, HashMap<String, Set<String>> requires) {
         this.checkImplementation = checkImplementation
         this.requires = requires
     }
 
-    Set<String> getRequireServices() {
-        return Collections.unmodifiableSet(requires)
+    Map<String, Set<String>> getRequireServices() {
+        return Collections.unmodifiableMap(requires)
     }
 
     def require(String service) {
-        requires.add(service)
+        require(service, "")
     }
 
-//    def requires(String...services) {
-//        requires.addAll(services)
-//    }
+    def require(String service, String alias) {
+        requires.computeIfAbsent(service, new Function<String, Set<String>>() {
+            @Override
+            Set<String> apply(String s) {
+                return new HashSet()
+            }
+        }).add(alias)
+    }
 
 
     @Override

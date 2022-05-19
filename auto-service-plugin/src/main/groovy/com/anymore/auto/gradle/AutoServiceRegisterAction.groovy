@@ -1,6 +1,5 @@
 package com.anymore.auto.gradle
 
-
 import com.anymore.auto.AutoService
 import com.squareup.javapoet.*
 import javassist.ClassPool
@@ -25,9 +24,9 @@ class AutoServiceRegisterAction {
     final FileCollection classpath
     final File targetDir
     private final ClassPool classPool
-    private final Set<String> requiredServices
+    private final Map<String, Set<String>> requiredServices
 
-    AutoServiceRegisterAction(FileCollection classpath, File targetDir, Set<String> requiredServices) {
+    AutoServiceRegisterAction(FileCollection classpath, File targetDir, Map<String, Set<String>> requiredServices) {
         this.classpath = classpath
         this.targetDir = targetDir
         this.requiredServices = requiredServices
@@ -64,13 +63,13 @@ class AutoServiceRegisterAction {
         }
     }
 
-    private void loadClass(List<CtClass> result, ClassPool pool, File file) {
+    private static void loadClass(List<CtClass> result, ClassPool pool, File file) {
         new FileInputStream(file).withCloseable {
             result.add(pool.makeClass(it))
         }
     }
 
-    private void loadJar(List<CtClass> result, ClassPool pool, File file) {
+    private static void loadJar(List<CtClass> result, ClassPool pool, File file) {
         final jarFile = new JarFile(file)
         jarFile.entries().asIterator().each {
             if (it.name.endsWith(".class")) {
@@ -81,7 +80,7 @@ class AutoServiceRegisterAction {
         }
     }
 
-    private Map<String, Collection<Element>> loadAutoServices(List<CtClass> classes) {
+    private static Map<String, Collection<Element>> loadAutoServices(List<CtClass> classes) {
         final result = new HashMap<String, Queue<Element>>()
         classes.each { ctClass ->
             if (ctClass.hasAnnotation(AutoService.class)) {
@@ -106,6 +105,12 @@ class AutoServiceRegisterAction {
                     a = ""
                 }
                 final alias = a
+                final sm = (BooleanMemberValue) autoServiceAnnotation.getMemberValue("singleton")
+                boolean single = false
+                if (sm != null) {
+                    single = sm.value
+                }
+                final singleton = single
                 serviceClasses.value.each { mv ->
                     final cm = (ClassMemberValue) mv
                     result.computeIfAbsent(cm.value, new Function<String, Queue<Element>>() {
@@ -113,14 +118,14 @@ class AutoServiceRegisterAction {
                         Queue<Element> apply(String s) {
                             return new PriorityQueue<Element>()
                         }
-                    }).offer(Element.create(ctClass.name, priority, alias))
+                    }).offer(Element.create(ctClass.name, priority, alias, singleton))
                 }
             }
         }
         return result
     }
 
-    private Annotation getAnnotation(ClassFile classFile, Class<?> clazz) {
+    private static Annotation getAnnotation(ClassFile classFile, Class<?> clazz) {
         final visibleAttr = (AnnotationsAttribute) classFile.getAttribute(AnnotationsAttribute.visibleTag)
         if (visibleAttr != null) {
             final autoService = visibleAttr.getAnnotation(clazz.name)
@@ -141,7 +146,7 @@ class AutoServiceRegisterAction {
                 .writeTo(targetDir)
     }
 
-    private JavaFile createServiceRegistry(Map<String, Queue<Element>> elements) {
+    private static JavaFile createServiceRegistry(Map<String, Queue<Element>> elements) {
         final pkg = "com.anymore.auto"
         //Class<?>
         final WildcardTypeName anyType = WildcardTypeName.subtypeOf(Object.class)
@@ -245,10 +250,10 @@ class AutoServiceRegisterAction {
                 while (!queue.isEmpty()) {
                     final element = queue.poll()
                     final implType = ClassName.bestGuess(element.name)
-                    final callable = TypeSpec.anonymousClassBuilder("\$S", element.alias)
+                    final callable = TypeSpec.anonymousClassBuilder("\$S,\$L", element.alias,element.singleton)
                             .addSuperinterface(ParameterizedTypeName.get(serviceSupplierClassName, serviceType))
                             .addMethod(
-                                    MethodSpec.methodBuilder("get")
+                                    MethodSpec.methodBuilder("newInstance")
                                             .addAnnotation(Override.class)
                                             .addModifiers(Modifier.PUBLIC)
                                             .addStatement("return new \$T()", implType)
@@ -274,11 +279,31 @@ class AutoServiceRegisterAction {
                 .build()
     }
 
-    private Collection<String> preCheckRequiredServices(Set<String> services, Set<String> implementedServices) {
-        final result = new LinkedList<String>()
-        services.each {
-            if (!implementedServices.contains(it)) {
-                result.add(it)
+    /**
+     * 编译期预检查
+     * @param services build.gradle中通过autoService 配置的必须实现的接口
+     * @param implementedServices 实际项目已经实现的接口
+     * @return 检查结果
+     */
+    private static Collection<Tuple2<String, String>> preCheckRequiredServices(Map<String, Set<String>> services, Map<String, Collection<Element>> implementedServices) {
+        final result = new LinkedList<Tuple2<String, String>>()
+        services.each { requiredService ->
+            final service = requiredService.key
+            final serviceAliases = implementedServices.get(service)
+            if (serviceAliases == null || serviceAliases.isEmpty()) {
+                requiredService.value.each {
+                    if (TextUtils.isEmpty(it) && requiredService.value.size() == 1) {
+                        result.add(new Tuple2<String, String>(service, ""))
+                    } else {
+                        result.add(new Tuple2<String, String>(service, it))
+                    }
+                }
+            } else {
+                requiredService.value.each {
+                    if (!TextUtils.isEmpty(it) && !serviceAliases.contains(it)) {
+                        result.add(new Tuple2<String, String>(service, it))
+                    }
+                }
             }
         }
         return result
@@ -290,12 +315,19 @@ class AutoServiceRegisterAction {
         final startTime = System.currentTimeMillis()
         final result = loadAutoServices(load())
         if (!requiredServices.isEmpty()) {
-            final checkResult = preCheckRequiredServices(requiredServices, result.keySet())
+            final checkResult = preCheckRequiredServices(requiredServices, result)
             if (!checkResult.isEmpty()) {
+                final builder = new StringBuilder()
                 checkResult.each {
-                    Logger.e("require service $it but has no implementation,please check!")
+                    String message
+                    if (TextUtils.isEmpty(it.second)) {
+                        message = "require service ${it.first} but has no implementation"
+                    } else {
+                        message = "require service ${it.first} with alias=\"${it.second}\" but has no implementation"
+                    }
+                    builder.append(message).append('\n')
                 }
-                throw new GradleException("please check autoService required service!")
+                throw new GradleException("please check autoService required services:\n${builder.toString()}")
             }
         }
         makeServiceRegistryFile(result)
@@ -307,15 +339,17 @@ class AutoServiceRegisterAction {
         final String name
         final int priority
         final String alias
+        final boolean singleton
 
-        Element(String name, int priority, String alias) {
+        Element(String name, int priority, String alias, boolean singleton) {
             this.name = name
             this.priority = priority
             this.alias = alias
+            this.singleton = singleton
         }
 
-        static Element create(String name, int priority, String alias) {
-            return new Element(name, priority, alias)
+        static Element create(String name, int priority, String alias, boolean singleton) {
+            return new Element(name, priority, alias, singleton)
         }
 
         @Override
@@ -334,7 +368,8 @@ class AutoServiceRegisterAction {
                     "name='" + name + '\'' +
                     ", priority=" + priority +
                     ", alias='" + alias + '\'' +
-                    '}';
+                    ", singleton=" + singleton +
+                    '}'
         }
     }
 }

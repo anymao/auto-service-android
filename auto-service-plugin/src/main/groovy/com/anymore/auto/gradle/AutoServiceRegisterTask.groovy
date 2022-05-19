@@ -11,10 +11,10 @@ class AutoServiceRegisterTask extends DefaultTask {
 
     private FileCollection classpath
     private File targetDir
-    private Set<String> requiredServices
+    private Map<String, Set<String>> requiredServices
 
     AutoServiceRegisterTask() {
-        requiredServices = new HashSet<>()
+        requiredServices = new HashMap<>()
     }
 
     void setTargetDir(File dir) {
@@ -25,7 +25,7 @@ class AutoServiceRegisterTask extends DefaultTask {
         this.classpath = classpath
     }
 
-    void setRequiredServices(Set<String> requiredServices) {
+    void setRequiredServices(Map<String, Set<String>> requiredServices) {
         this.requiredServices = requiredServices
     }
 
