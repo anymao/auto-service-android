@@ -12,11 +12,11 @@ java {
 
 dependencies {
     implementation "org.jetbrains.kotlin:kotlin-stdlib:$kotlin_version"
-    api("com.anymore:auto-service-annotation:0.0.4")
+    api("com.anymore:auto-service-annotation:0.0.5")
     compileOnly("com.anymore:auto-service-registry:0.0.2-SNAPSHOT")
 
 //    compileOnly project(path: ':auto-service-registry')
 }
 
 group 'com.anymore'
-version '0.0.4'
+version '0.0.5'

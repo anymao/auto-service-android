@@ -14,7 +14,9 @@ import org.gradle.api.tasks.TaskAction
 import org.jetbrains.annotations.NotNull
 
 import javax.lang.model.element.Modifier
+import java.util.concurrent.atomic.AtomicLong
 import java.util.function.Function
+import java.util.function.Supplier
 import java.util.jar.JarFile
 
 /**
@@ -151,8 +153,10 @@ class AutoServiceRegisterAction {
         //Class<?>
         final WildcardTypeName anyType = WildcardTypeName.subtypeOf(Object.class)
         final TypeVariableName typeOfS = TypeVariableName.get("S")
-        //ServiceFactory
+        //ServiceSupplier
         final ClassName serviceSupplierClassName = ClassName.get(pkg, "ServiceSupplier")
+        //SingletonServiceSupplier
+        final ClassName singletonServiceSupplierClassName = ClassName.get(pkg, "SingletonServiceSupplier")
 
         final serviceCreatorsField = FieldSpec.builder(
                 ParameterizedTypeName.get(ClassName.get(Map.class),
@@ -244,23 +248,45 @@ class AutoServiceRegisterAction {
                 .build()
 
         final staticRegisterCode = CodeBlock.builder().with { builder ->
+            final singletonSuppers = new LinkedHashMap<ClassName, String>()
+            final supperCounter = new AtomicLong(0L)
             elements.each { entry ->
                 final serviceType = ClassName.bestGuess(entry.key)
                 final queue = entry.value
                 while (!queue.isEmpty()) {
                     final element = queue.poll()
                     final implType = ClassName.bestGuess(element.name)
-                    final callable = TypeSpec.anonymousClassBuilder("\$S,\$L", element.alias,element.singleton)
-                            .addSuperinterface(ParameterizedTypeName.get(serviceSupplierClassName, serviceType))
-                            .addMethod(
-                                    MethodSpec.methodBuilder("newInstance")
-                                            .addAnnotation(Override.class)
-                                            .addModifiers(Modifier.PUBLIC)
-                                            .addStatement("return new \$T()", implType)
-                                            .returns(serviceType)
-                                            .build()
-                            ).build()
-                    builder.addStatement("register(\$T.class,\$L)", serviceType, callable)
+                    if (!element.singleton) {
+                        final supplier = TypeSpec.anonymousClassBuilder("")
+                                .addSuperinterface(ParameterizedTypeName.get(ClassName.get(Supplier), implType))
+                                .addMethod(
+                                        MethodSpec.methodBuilder("get")
+                                                .addAnnotation(Override.class)
+                                                .addModifiers(Modifier.PUBLIC)
+                                                .addStatement("return new \$T()", implType)
+                                                .returns(implType)
+                                                .build()
+                                ).build()
+                        builder.addStatement("register(\$T.class,new \$T<\$T>(\$S,\$L))", serviceType, serviceSupplierClassName, serviceType, element.alias, supplier)
+                    } else {
+                        String supplierName = singletonSuppers.get(implType)
+                        if (TextUtils.isEmpty(supplierName)) {
+                            final singletonSupplier = TypeSpec.anonymousClassBuilder("")
+                                    .addSuperinterface(ParameterizedTypeName.get(singletonServiceSupplierClassName, implType))
+                                    .addMethod(
+                                            MethodSpec.methodBuilder("newInstance")
+                                                    .addAnnotation(Override.class)
+                                                    .addModifiers(Modifier.PUBLIC)
+                                                    .addStatement("return new \$T()", implType)
+                                                    .returns(implType)
+                                                    .build()
+                                    ).build()
+                            supplierName = "supplier" + supperCounter.getAndIncrement()
+                            builder.addStatement("final \$T<\$T> \$N = \$L", ClassName.get(Supplier), implType, supplierName, singletonSupplier)
+                            singletonSuppers.put(implType, supplierName)
+                        }
+                        builder.addStatement("register(\$T.class,new \$T<\$T>(\$S,\$N))", serviceType, serviceSupplierClassName, serviceType, element.alias, supplierName)
+                    }
                 }
             }
             builder.build()

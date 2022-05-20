@@ -4,6 +4,7 @@ import android.os.Bundle
 import android.util.Log
 import androidx.appcompat.app.AppCompatActivity
 import com.anymore.auto.ServiceLoader
+import java.util.concurrent.Callable
 import kotlin.concurrent.thread
 
 class MainActivity : AppCompatActivity() {
@@ -21,6 +22,11 @@ class MainActivity : AppCompatActivity() {
                     it.run()
                 }
             }
+        }
+        Thread.sleep(1500)
+        ServiceLoader.load<Callable<Any>>().forEach {
+            Log.e("lym",Thread.currentThread().name+it.toString())
+            it.call()
         }
     }
 
