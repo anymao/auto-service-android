@@ -12,6 +12,7 @@ import org.gradle.api.GradleException
 import org.gradle.api.file.FileCollection
 import org.gradle.api.tasks.TaskAction
 import org.jetbrains.annotations.NotNull
+import org.jetbrains.annotations.Nullable
 
 import javax.lang.model.element.Modifier
 import java.util.concurrent.atomic.AtomicLong
@@ -27,11 +28,13 @@ class AutoServiceRegisterAction {
     final File targetDir
     private final ClassPool classPool
     private final Map<String, Set<String>> requiredServices
+    private final Set<ExclusiveRule> exclusiveRules
 
-    AutoServiceRegisterAction(FileCollection classpath, File targetDir, Map<String, Set<String>> requiredServices) {
+    AutoServiceRegisterAction(FileCollection classpath, File targetDir, Map<String, Set<String>> requiredServices, Set<ExclusiveRule> exclusiveRules) {
         this.classpath = classpath
         this.targetDir = targetDir
         this.requiredServices = requiredServices
+        this.exclusiveRules = exclusiveRules
         classPool = new ClassPool(true) {
             @Override
             ClassLoader getClassLoader() {
@@ -82,7 +85,7 @@ class AutoServiceRegisterAction {
         }
     }
 
-    private static Map<String, Collection<Element>> loadAutoServices(List<CtClass> classes) {
+    private static Map<String, Collection<Element>> loadAutoServices(List<CtClass> classes, Set<ExclusiveRule> exclusiveRules) {
         final result = new HashMap<String, Queue<Element>>()
         classes.each { ctClass ->
             if (ctClass.hasAnnotation(AutoService.class)) {
@@ -113,6 +116,12 @@ class AutoServiceRegisterAction {
                     single = sm.value
                 }
                 final singleton = single
+                final element = Element.create(ctClass.name, priority, alias, singleton)
+                final rule = matchExcludeRule(element, exclusiveRules)
+                if (rule != null) {
+                    Logger.tell("${element} matchExcludeRule:${rule},remove it.")
+                    return
+                }
                 serviceClasses.value.each { mv ->
                     final cm = (ClassMemberValue) mv
                     result.computeIfAbsent(cm.value, new Function<String, Queue<Element>>() {
@@ -120,7 +129,7 @@ class AutoServiceRegisterAction {
                         Queue<Element> apply(String s) {
                             return new PriorityQueue<Element>()
                         }
-                    }).offer(Element.create(ctClass.name, priority, alias, singleton))
+                    }).offer(element)
                 }
             }
         }
@@ -305,6 +314,21 @@ class AutoServiceRegisterAction {
                 .build()
     }
 
+
+    /**
+     * 是否命中排除规则
+     * @param element
+     * @param rules
+     * @return
+     */
+    @Nullable
+    private static ExclusiveRule matchExcludeRule(Element element, Set<ExclusiveRule> rules) {
+        if (rules.empty) {
+            return null
+        }
+        return rules.find { element.name.matches(it.className) && element.alias.matches(it.alias) }
+    }
+
     /**
      * 编译期预检查
      * @param services build.gradle中通过autoService 配置的必须实现的接口
@@ -339,7 +363,7 @@ class AutoServiceRegisterAction {
     @TaskAction
     boolean execute() throws Exception {
         final startTime = System.currentTimeMillis()
-        final result = loadAutoServices(load())
+        final result = loadAutoServices(load(), exclusiveRules)
         if (!requiredServices.isEmpty()) {
             final checkResult = preCheckRequiredServices(requiredServices, result)
             if (!checkResult.isEmpty()) {

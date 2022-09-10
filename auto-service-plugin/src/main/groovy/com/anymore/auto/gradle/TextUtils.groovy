@@ -1,6 +1,7 @@
 package com.anymore.auto.gradle
 
-import javax.annotation.Nullable;
+import org.jetbrains.annotations.Nullable
+
 
 /**
  * Created by anymore on 2022/5/19.

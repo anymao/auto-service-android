@@ -24,7 +24,7 @@ class AutoServiceRegisterPlugin implements Plugin<Project> {
                     if (autoServiceExtension.checkImplementation) {
                         it.setRequiredServices(autoServiceExtension.requireServices)
                     }
-
+                    it.setExclusiveRules(autoServiceExtension.exclusiveRules)
                 }
                 final compileTask = project.tasks.create("compileAndroidAutoServiceRegistry${variant.name.capitalize()}", JavaCompile.class) {
                     it.setSource(new File(workDir, "src"))

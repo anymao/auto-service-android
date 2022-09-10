@@ -8,6 +8,7 @@ import java.util.function.Function
 class AutoServiceExtension {
     boolean checkImplementation = false
     private HashMap<String, Set<String>> requires = new LinkedHashMap<>()
+    private HashSet<ExclusiveRule> exclusives = new HashSet<>()
 
     AutoServiceExtension(boolean checkImplementation, HashMap<String, Set<String>> requires) {
         this.checkImplementation = checkImplementation
@@ -16,6 +17,10 @@ class AutoServiceExtension {
 
     Map<String, Set<String>> getRequireServices() {
         return Collections.unmodifiableMap(requires)
+    }
+
+    Set<ExclusiveRule> getExclusiveRules() {
+        return Collections.unmodifiableSet(exclusives)
     }
 
     def require(String service) {
@@ -31,12 +36,25 @@ class AutoServiceExtension {
         }).add(alias)
     }
 
+    def excludeClassName(String className) {
+        exclude(className, ".*")
+    }
+
+    def excludeAlias(String alias) {
+        exclude(".*", alias)
+    }
+
+    def exclude(String className, String alias) {
+        exclusives.add(new ExclusiveRule(className, alias))
+    }
+
 
     @Override
     String toString() {
         return "AutoServiceExtension{" +
                 "checkImplementation=" + checkImplementation +
                 ", requires=" + requires +
+                ", exclusives=" + exclusives +
                 '}';
     }
 }

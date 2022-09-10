@@ -3,7 +3,7 @@ plugins {
     id 'kotlin-android'
     id 'auto-service'
 }
-
+//apply plugin: AutoServiceRegisterPlugin
 android {
     compileSdkVersion 30
     buildToolsVersion "30.0.3"
@@ -48,6 +48,9 @@ autoService {
     checkImplementation=false
     require(Runnable.class.name,"lym33")
     require("java.util.concurrent.Callable")
+    excludeAlias("lym23")
+    excludeClassName("com\\.anymore\\..*")
+    exclude("com\\.anymore\\..*","lym.*")
 }
 
 dependencies {
@@ -57,7 +60,7 @@ dependencies {
     implementation 'androidx.appcompat:appcompat:1.2.0'
     implementation 'com.google.android.material:material:1.2.1'
     implementation 'androidx.constraintlayout:constraintlayout:2.0.1'
-    api("com.anymore:auto-service-loader:0.0.5")
+    api("com.anymore:auto-service-loader:0.0.6")
 
     testImplementation 'junit:junit:4.+'
     androidTestImplementation 'androidx.test.ext:junit:1.1.2'

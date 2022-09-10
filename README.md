@@ -24,7 +24,7 @@
        
        dependencies {
           // other code...
-           classpath("com.anymore:auto-service-register:0.0.4")
+           classpath("com.anymore:auto-service-register:0.0.6")
        }
    }
    
@@ -55,7 +55,7 @@
 3. 添加依赖
 
    ```groovy
-   api("com.anymore:auto-service-loader:0.0.4")
+   api("com.anymore:auto-service-loader:0.0.6")
    ```
 
 4. 定义接口的实现并使用@AutoService注解标记
@@ -105,6 +105,18 @@
        //检查Runnable接口且 alias="lym"的实现
        require(Runnable.class.name,"lym")
        require("java.util.concurrent.Callable")
+   }
+   ```
+
+7. 排除注入
+
+   如果我们依赖的其他aar中注入了某个实现类，但是我们不想将这个实现类注入进来，可以通过设置排除规则将这个实现排除掉。
+
+   ```groovy
+   autoService {
+       excludeAlias("lym23")//排除掉所有别名为lym23的实现
+       excludeClassName("com\\.anymore\\..*")//排除掉所有包名为com.anymore的实现
+       exclude("com\\.anymore\\..*","lym.*")//排除掉所有包名为com.anymore 且 别名以 lym开头的实现
    }
    ```
 

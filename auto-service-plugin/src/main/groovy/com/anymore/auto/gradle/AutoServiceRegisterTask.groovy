@@ -12,9 +12,12 @@ class AutoServiceRegisterTask extends DefaultTask {
     private FileCollection classpath
     private File targetDir
     private Map<String, Set<String>> requiredServices
+    private Set<ExclusiveRule> exclusiveRules
+
 
     AutoServiceRegisterTask() {
         requiredServices = new HashMap<>()
+        exclusiveRules = new HashSet<>()
     }
 
     void setTargetDir(File dir) {
@@ -29,9 +32,12 @@ class AutoServiceRegisterTask extends DefaultTask {
         this.requiredServices = requiredServices
     }
 
+    void setExclusiveRules(Set<ExclusiveRule> exclusiveRules) {
+        this.exclusiveRules = exclusiveRules
+    }
 
     @TaskAction
     void run() {
-        didWork(new AutoServiceRegisterAction(classpath, targetDir,requiredServices).execute())
+        didWork(new AutoServiceRegisterAction(classpath, targetDir, requiredServices, exclusiveRules).execute())
     }
 }
