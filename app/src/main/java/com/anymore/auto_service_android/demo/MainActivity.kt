@@ -11,7 +11,7 @@ class MainActivity : AppCompatActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         setContentView(R.layout.activity_main)
-        ServiceLoader.load<Runnable>(alias = "lym").forEach {
+        ServiceLoader.load<Runnable>().forEach {
             Log.d("lym", Thread.currentThread().name + it.toString())
             it.run()
         }

@@ -9,5 +9,9 @@ java {
     targetCompatibility = JavaVersion.VERSION_1_7
 }
 
+dependencies {
+    compileOnly("com.anymore:auto-service-loader:0.0.7-SNAPSHOT")
+}
+
 group 'com.anymore'
-version '0.0.2-SNAPSHOT'
+version VERSION

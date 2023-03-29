@@ -8,6 +8,11 @@ import com.anymore.auto.AutoService
  */
 @AutoService(Runnable::class,priority = 1,alias ="lym23")
 class Impl2:Runnable {
+
+    init {
+        Log.e("lym","impl2 init")
+
+    }
     override fun run() {
         Log.e("lym","impl2")
     }

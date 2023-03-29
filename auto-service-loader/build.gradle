@@ -12,8 +12,8 @@ java {
 
 dependencies {
     implementation "org.jetbrains.kotlin:kotlin-stdlib:$kotlin_version"
-    api("com.anymore:auto-service-annotation:0.0.7")
-    compileOnly("com.anymore:auto-service-registry:0.0.2-SNAPSHOT")
+    api("com.anymore:auto-service-annotation:0.0.8")
+    compileOnly("com.anymore:auto-service-registry:0.0.7-SNAPSHOT")
 
 //    compileOnly project(path: ':auto-service-registry')
 }

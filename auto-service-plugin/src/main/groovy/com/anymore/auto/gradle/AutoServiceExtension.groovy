@@ -7,8 +7,10 @@ import java.util.function.Function
  */
 class AutoServiceExtension {
     boolean checkImplementation = false
+    String sourceCompatibility = "1.7"
     private HashMap<String, Set<String>> requires = new LinkedHashMap<>()
     private HashSet<ExclusiveRule> exclusives = new HashSet<>()
+    private int logLevel = Logger.INFO
 
     AutoServiceExtension(boolean checkImplementation, HashMap<String, Set<String>> requires) {
         this.checkImplementation = checkImplementation
@@ -48,13 +50,41 @@ class AutoServiceExtension {
         exclusives.add(new ExclusiveRule(className, alias))
     }
 
+    def setLogLevel(String level) {
+        switch (level) {
+            case "VERBOSE":
+                logLevel = Logger.VERBOSE
+                break
+            case "DEBUG":
+                logLevel = Logger.DEBUG
+                break
+            case "INFO":
+                logLevel = Logger.INFO
+                break
+            case "WARN":
+                logLevel = Logger.WARN
+                break
+            case "ERROR":
+                logLevel = Logger.ERROR
+                break
+            default:
+                logLevel = Logger.INFO
+                break
+        }
+    }
+
+    def getLogLevel() {
+        return logLevel
+    }
 
     @Override
     String toString() {
         return "AutoServiceExtension{" +
                 "checkImplementation=" + checkImplementation +
+                ", sourceCompatibility=" + sourceCompatibility +
                 ", requires=" + requires +
                 ", exclusives=" + exclusives +
-                '}';
+                ", _logLevel=" + logLevel +
+                '}'
     }
 }

@@ -24,7 +24,7 @@
        
        dependencies {
           // other code...
-           classpath("com.anymore:auto-service-register:0.0.6")
+           classpath("com.anymore:auto-service-register:0.0.8")
        }
    }
    
@@ -55,7 +55,7 @@
 3. 添加依赖
 
    ```groovy
-   api("com.anymore:auto-service-loader:0.0.6")
+   api("com.anymore:auto-service-loader:0.0.8")
    ```
 
 4. 定义接口的实现并使用@AutoService注解标记
@@ -101,10 +101,12 @@
    ```groovy
    autoService {
        checkImplementation=true
-       require(Runnable.class.name)
+       //sourceCompatibility="1.8"//指定java编译版本，默认1.7
+       //logLevel = "VERBOSE"//插件日志级别 VERBOSE,DEBUG,INFO,WARN,ERROR 默认 INFO
+       //require(Runnable.class.name)
        //检查Runnable接口且 alias="lym"的实现
-       require(Runnable.class.name,"lym")
-       require("java.util.concurrent.Callable")
+       //require(Runnable.class.name,"lym")
+       //require("java.util.concurrent.Callable")
    }
    ```
 

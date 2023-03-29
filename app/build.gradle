@@ -46,11 +46,13 @@ android {
 
 autoService {
     checkImplementation=false
-    require(Runnable.class.name,"lym33")
-    require("java.util.concurrent.Callable")
-    excludeAlias("lym23")
-    excludeClassName("com\\.anymore\\..*")
-    exclude("com\\.anymore\\..*","lym.*")
+    sourceCompatibility="1.8"
+    logLevel = "VERBOSE"
+//    require(Runnable.class.name,"lym33")
+//    require("java.util.concurrent.Callable")
+//    excludeAlias("lym23")
+//    excludeClassName("com\\.anymore\\..*")
+//    exclude("com\\.anymore\\..*","lym.*")
 }
 
 dependencies {
@@ -60,7 +62,7 @@ dependencies {
     implementation 'androidx.appcompat:appcompat:1.2.0'
     implementation 'com.google.android.material:material:1.2.1'
     implementation 'androidx.constraintlayout:constraintlayout:2.0.1'
-    api("com.anymore:auto-service-loader:0.0.7")
+    api("com.anymore:auto-service-loader:0.0.8")
 
     testImplementation 'junit:junit:4.+'
     androidTestImplementation 'androidx.test.ext:junit:1.1.2'

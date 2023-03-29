@@ -7,7 +7,7 @@ import java.util.function.Supplier
  *
  * Created by anymore on 2022/5/20.
  */
-abstract class SingletonServiceSupplier<T> : Supplier<T> {
+internal abstract class SingletonServiceSupplier<T> : Supplier<T> {
 
     @Volatile
     private var instance: T? = null

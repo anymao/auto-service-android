@@ -9,6 +9,10 @@ import java.util.concurrent.Callable
  */
 @AutoService(value = [Runnable::class, Callable::class], singleton = true)
 class Impl1 : Runnable, Callable<Int> {
+
+    init {
+        Log.e("lym","impl1 init")
+    }
     override fun run() {
         Log.e("lym", "impl1")
     }

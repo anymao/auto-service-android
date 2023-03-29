@@ -2,12 +2,6 @@
 <project version="4">
   <component name="CompilerConfiguration">
     <bytecodeTargetLevel target="11">
-      <module name="auto-service-android.auto-service-annotation" target="1.8" />
-      <module name="auto-service-android.auto-service-annotation.main" target="1.8" />
-      <module name="auto-service-android.auto-service-annotation.test" target="1.8" />
-      <module name="auto-service-android.auto-service-loader" target="1.8" />
-      <module name="auto-service-android.auto-service-loader.main" target="1.8" />
-      <module name="auto-service-android.auto-service-loader.test" target="1.8" />
       <module name="auto-service-android.buildSrc" target="1.7" />
       <module name="auto-service-android.buildSrc.main" target="1.7" />
       <module name="auto-service-android.buildSrc.test" target="1.7" />

@@ -119,7 +119,7 @@ class AutoServiceRegisterAction {
                 final element = Element.create(ctClass.name, priority, alias, singleton)
                 final rule = matchExcludeRule(element, exclusiveRules)
                 if (rule != null) {
-                    Logger.tell("${element} matchExcludeRule:${rule},remove it.")
+                    Logger.d("${element} matchExcludeRule:${rule},remove it.")
                     return
                 }
                 serviceClasses.value.each { mv ->
@@ -153,8 +153,10 @@ class AutoServiceRegisterAction {
         if (targetDir.exists()) {
             targetDir.mkdirs()
         }
-        createServiceRegistry(elements)
-                .writeTo(targetDir)
+        final file = createServiceRegistry(elements)
+                .writeToFile(targetDir)
+        Logger.d("Create ServiceRegistry.java Successful: ")
+        Logger.d(" ${file.getAbsolutePath()}")
     }
 
     private static JavaFile createServiceRegistry(Map<String, Queue<Element>> elements) {
@@ -166,6 +168,8 @@ class AutoServiceRegisterAction {
         final ClassName serviceSupplierClassName = ClassName.get(pkg, "ServiceSupplier")
         //SingletonServiceSupplier
         final ClassName singletonServiceSupplierClassName = ClassName.get(pkg, "SingletonServiceSupplier")
+        //ServiceLazy
+        final ClassName serviceLazyClassName = ClassName.get(pkg, "ServiceLazy")
 
         final serviceCreatorsField = FieldSpec.builder(
                 ParameterizedTypeName.get(ClassName.get(Map.class),
@@ -239,21 +243,22 @@ class AutoServiceRegisterAction {
                                 .endControlFlow()
                                 .build())
                         .addStatement("final \$T<\$T> services = new \$T<>(suppliers.size())",
-                                List.class, typeOfS, ArrayList.class
+                                List.class, ParameterizedTypeName.get(singletonServiceSupplierClassName, typeOfS), ArrayList.class
                         )
                         .beginControlFlow("if (!suppliers.isEmpty())")
                         .beginControlFlow("for (\$T<\$T> supplier : suppliers)", serviceSupplierClassName, anyType)
-                        .beginControlFlow("try")
-                        .addStatement("services.add((\$T) supplier.get())", typeOfS)
-                        .nextControlFlow("catch (\$T e)", Exception.class)
-                        .addStatement("throw new \$T(\$T.format(\"create class:%s ,alias:%s error!\", clazz.getCanonicalName(), alias), e)", ServiceConfigurationError.class, String.class)
+                        .addStatement("final \$T<\$T> realSupplier = (\$T<\$T>)supplier.getSupplier()", Supplier.class, typeOfS, Supplier.class, typeOfS)
+                        .beginControlFlow("if (realSupplier instanceof \$T)", singletonServiceSupplierClassName)
+                        .addStatement("services.add((\$T)realSupplier)", singletonServiceSupplierClassName)
+                        .nextControlFlow("else")
+                        .addStatement("services.add(new \$T(realSupplier))", serviceLazyClassName)
                         .endControlFlow()
                         .endControlFlow()
                         .endControlFlow()
                         .addStatement("return \$T.unmodifiableList(services)", Collections.class)
                         .build()
                 )
-                .returns(ParameterizedTypeName.get(ClassName.get(List.class), typeOfS))
+                .returns(ParameterizedTypeName.get(ClassName.get(List.class), ParameterizedTypeName.get(singletonServiceSupplierClassName, typeOfS)))
                 .build()
 
         final staticRegisterCode = CodeBlock.builder().with { builder ->
@@ -381,7 +386,7 @@ class AutoServiceRegisterAction {
             }
         }
         makeServiceRegistryFile(result)
-        Logger.tell("used time:${(System.currentTimeMillis() - startTime) / 1000}s")
+        Logger.i("used time:${(System.currentTimeMillis() - startTime) / 1000}s")
         return true
     }
 

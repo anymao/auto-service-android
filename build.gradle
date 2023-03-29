@@ -24,16 +24,16 @@ buildscript {
     dependencies {
         classpath "com.android.tools.build:gradle:4.2.2"
         classpath "org.jetbrains.kotlin:kotlin-gradle-plugin:$kotlin_version"
-        classpath("com.anymore:auto-service-register:0.0.7")
+        classpath("com.anymore:auto-service-register:0.0.8")
         // NOTE: Do not place your application dependencies here; they belong
         // in the individual module build.gradle files
     }
 
-//    configurations.all {
-//
-//        resolutionStrategy.cacheChangingModulesFor 0, 'seconds'
-//        resolutionStrategy.cacheDynamicVersionsFor 0, 'seconds'
-//    }
+    configurations.all {
+
+        resolutionStrategy.cacheChangingModulesFor 0, 'seconds'
+        resolutionStrategy.cacheDynamicVersionsFor 0, 'seconds'
+    }
 }
 
 allprojects {
@@ -54,6 +54,11 @@ allprojects {
             }
             url 'https://packages.aliyun.com/maven/repository/2202395-snapshot-3OoSzj/'
         }
+    }
+    configurations.all {
+
+        resolutionStrategy.cacheChangingModulesFor 0, 'seconds'
+        resolutionStrategy.cacheDynamicVersionsFor 0, 'seconds'
     }
 }
 
