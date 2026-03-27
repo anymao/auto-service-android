@@ -1,7 +1,7 @@
 rootProject.name = "auto-service-android"
 include ':app'
 include ':auto-service-annotation'
-include ':auto-service-registry'
+//include ':auto-service-registry'
 include ':auto-service-loader'
 def buildSrcGradle = file(rootProject.projectDir.absolutePath+"/buildSrc/build.gradle")
 if (!buildSrcGradle.exists()){

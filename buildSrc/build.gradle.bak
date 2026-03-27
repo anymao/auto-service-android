@@ -45,10 +45,10 @@ java {
 dependencies {
     compileOnly(gradleApi())
     compileOnly(localGroovy())
-    compileOnly("com.android.tools.build:gradle:7.4.0")
-    implementation("com.anymore:auto-service-annotation:0.0.8")
+    compileOnly("com.android.tools.build:gradle:8.13.0")
+    implementation("com.anymore:auto-service-annotation:0.0.9")
     implementation('com.squareup:javapoet:1.13.0')
-    implementation("com.android.tools.build:gradle:7.4.0")
+    implementation("com.android.tools.build:gradle:8.13.0")
     implementation("commons-io:commons-io:2.8.0")
     implementation("commons-codec:commons-codec:1.15")
     implementation("org.javassist:javassist:3.28.0-GA")

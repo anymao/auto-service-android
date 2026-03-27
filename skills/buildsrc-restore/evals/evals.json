@@ -1,0 +1,29 @@
+{
+  "skill_name": "buildsrc-restore",
+  "evals": [
+    {
+      "id": 1,
+      "prompt": "切回模块模式",
+      "expected_output": "成功将 buildSrc/build.gradle 重命名回 buildSrc/build.gradle.bak，并恢复根目录 build.gradle 和 app/build.gradle 中的插件相关依赖",
+      "files": []
+    },
+    {
+      "id": 2,
+      "prompt": "插件开发完成了，我想恢复到正常的构建模式",
+      "expected_output": "完成模块模式恢复，并说明后续的发布和构建流程",
+      "files": []
+    },
+    {
+      "id": 3,
+      "prompt": "退出 buildSrc 模式",
+      "expected_output": "执行所有必要的恢复步骤：重命名文件、取消注释依赖、验证结果",
+      "files": []
+    },
+    {
+      "id": 4,
+      "prompt": "恢复正常构建模式",
+      "expected_output": "执行恢复步骤，并提示需要先发布插件到 Maven 仓库",
+      "files": []
+    }
+  ]
+}

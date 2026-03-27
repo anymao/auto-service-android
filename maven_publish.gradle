@@ -6,7 +6,7 @@ apply plugin: 'maven-publish'
 // 创建 sources jar
 task sourcesJar(type: Jar) {
     from sourceSets.main.allSource
-    classifier = 'sources'
+    archiveClassifier = 'sources'
 }
 
 // 配置 publishing

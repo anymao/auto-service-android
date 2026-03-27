@@ -1,0 +1,23 @@
+{
+  "skill_name": "buildsrc-switcher",
+  "evals": [
+    {
+      "id": 1,
+      "prompt": "切换到 buildSrc 模式",
+      "expected_output": "成功将 buildSrc/build.gradle.bak 重命名为 buildSrc/build.gradle，并注释掉根目录 build.gradle 和 app/build.gradle 中的插件相关依赖",
+      "files": []
+    },
+    {
+      "id": 2,
+      "prompt": "我想使用 buildSrc 模式开发插件，这样每次修改代码就不用重新发布到 Maven 仓库了",
+      "expected_output": "完成 buildSrc 模式切换，并说明后续的开发迭代流程",
+      "files": []
+    },
+    {
+      "id": 3,
+      "prompt": "启用 buildSrc 构建模式",
+      "expected_output": "执行所有必要的切换步骤：重命名文件、注释依赖、验证结果",
+      "files": []
+    }
+  ]
+}

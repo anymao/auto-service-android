@@ -31,7 +31,8 @@ class AutoServiceRegisterAction {
     private final Set<ExclusiveRule> exclusiveRules
 
     AutoServiceRegisterAction(FileCollection classpath, File targetDir, Map<String, Set<String>> requiredServices, Set<ExclusiveRule> exclusiveRules) {
-        this.classpath = classpath
+        // 过滤掉不存在的文件，避免 Javassist 抛出异常
+        this.classpath = classpath.filter { it.exists() }
         this.targetDir = targetDir
         this.requiredServices = requiredServices
         this.exclusiveRules = exclusiveRules
@@ -45,8 +46,10 @@ class AutoServiceRegisterAction {
 
     private List<CtClass> load() {
         final result = new LinkedList<CtClass>()
-        classpath.each {
-            classPool.appendClassPath(it.getAbsolutePath())
+        classpath.each { file ->
+            if (file.exists()) {
+                classPool.appendClassPath(file.getAbsolutePath())
+            }
         }
         classpath.each {
             load(result, classPool, it)

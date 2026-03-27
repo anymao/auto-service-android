@@ -8,10 +8,10 @@ repositories {
     mavenCentral()
     maven {
         credentials {
-            username "$ALIYUN_USERNAME"
-            password "$ALIYUN_PASSWORD"
+            username = "$ALIYUN_USERNAME"
+            password = "$ALIYUN_PASSWORD"
         }
-        url 'https://packages.aliyun.com/maven/repository/2202395-release-jr0puW/'
+        url = 'https://packages.aliyun.com/maven/repository/2202395-release-jr0puW/'
     }
 }
 
@@ -23,10 +23,10 @@ java {
 dependencies {
     compileOnly(gradleApi())
     compileOnly(localGroovy())
-    compileOnly("com.android.tools.build:gradle:7.4.0")
-    implementation("com.anymore:auto-service-annotation:0.0.9")
+    compileOnly("com.android.tools.build:gradle:8.13.0")
+    implementation("com.anymore:auto-service-annotation:0.0.10")
     implementation('com.squareup:javapoet:1.13.0')
-    implementation("com.android.tools.build:gradle:7.4.0")
+    implementation("com.android.tools.build:gradle:8.13.0")
     implementation("commons-io:commons-io:2.8.0")
     implementation("commons-codec:commons-codec:1.15")
     implementation("org.javassist:javassist:3.28.0-GA")
@@ -35,5 +35,5 @@ dependencies {
 
 }
 
-group 'com.anymore'
-version VERSION
+group = 'com.anymore'
+version = VERSION

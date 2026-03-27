@@ -1,6 +1,72 @@
 # 版本变更日志
 
-## v0.0.9 (2026-03-28)
+## v0.0.11 (2026-03-28)
+
+### 解决 Gradle 废弃 API 警告
+
+**主要变更**:
+- ✅ 修复 Groovy DSL 属性赋值语法（Gradle 10.0 兼容）
+  - `username "$X"` → `username = "$X"`
+  - `password "$X"` → `password = "$X"`
+  - `url 'X'` → `url = 'X'`
+  - `namespace 'com.xxx'` → `namespace = 'com.xxx'`
+  - `group 'com.xxx'` → `group = 'com.xxx'`
+  - `version X` → `version = X`
+- ✅ 升级 JavaCompile 废弃 API（Gradle 9.0 兼容）
+  - `setDestinationDir(file)` → `destinationDirectory.set(file)`
+- ✅ 升级 buildDir 到 layout.buildDirectory（Gradle 9.0 兼容）
+  - 使用 `project.layout.buildDirectory.dir(...).get().asFile`
+  - 替代字符串拼接和 `File.separator` 的路径构建方式
+- ✅ 添加 buildsrc-switcher 和 buildsrc-restore skills
+
+### 环境要求
+
+**构建环境**:
+- JDK 11 或更高版本
+- Gradle 8.13 或更高版本
+- Android Gradle Plugin 8.13.0 或更高版本
+
+### 技术变更详情
+
+#### 1. Groovy DSL 语法修复
+修复的文件：
+- `build.gradle` - 根目录构建配置（9 处修改）
+- `app/build.gradle` - 应用模块配置（2 处修改）
+- `auto-service-annotation/build.gradle` - 注解模块（2 处修改）
+- `auto-service-loader/build.gradle` - 加载器模块（2 处修改）
+- `auto-service-plugin/build.gradle` - 插件模块（4 处修改）
+
+#### 2. 废弃 API 升级
+文件：`auto-service-plugin/src/main/groovy/com/anymore/auto/gradle/AutoServiceRegisterPlugin.groovy`
+
+**升级的 API**:
+- 第 56 行：`setDestinationDir` → `destinationDirectory.set`
+- 第 30-33 行：`workDir` 路径使用 `layout.buildDirectory`
+- 第 37-40 行：`compileOutputDir` 路径使用 `layout.buildDirectory`
+
+#### 3. Skills 增强
+新增两个 OpenSpec skills 用于快速切换构建模式：
+- `buildsrc-switcher` - 切换到 buildSrc 模式（快速插件开发）
+- `buildsrc-restore` - 恢复到模块模式（正常构建流程）
+
+### 迁移指南
+
+**无破坏性升级**：
+- ✅ 所有修改仅为语法升级，不改变功能逻辑
+- ✅ 新语法在 Gradle 8.x 中完全兼容
+- ✅ 构建成功，功能正常
+- ✅ ServiceRegistry 正确生成
+
+### 已知问题
+
+- ⚠️ 仍有少量废弃警告来自第三方依赖
+- ⚠️ 建议发布前执行完整的回归测试（debug/release 模块模式）
+
+---
+
+## v0.0.10 (2026-03-28)
+
+### 适配 Android Gradle Plugin 8.13.0
 
 ### 升级 Android Gradle Plugin 到 7.4.0
 

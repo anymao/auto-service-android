@@ -1,6 +1,6 @@
 // Top-level build file where you can add configuration options common to all sub-projects/modules.
 buildscript {
-    ext.kotlin_version = "1.8.10"
+    ext.kotlin_version = "2.1.0"
     ext.maven_username = System.getenv("ALIYUN_USERNAME")
     ext.maven_password = System.getenv("ALIYUN_PASSWORD")
     repositories {
@@ -8,10 +8,10 @@ buildscript {
         mavenCentral()
         maven {
             credentials {
-                username "$ALIYUN_USERNAME"
-                password "$ALIYUN_PASSWORD"
+                username = "$ALIYUN_USERNAME"
+                password = "$ALIYUN_PASSWORD"
             }
-            url 'https://packages.aliyun.com/maven/repository/2202395-release-jr0puW/'
+            url = 'https://packages.aliyun.com/maven/repository/2202395-release-jr0puW/'
         }
 //        maven {
 //            credentials {
@@ -22,9 +22,9 @@ buildscript {
 //        }
     }
     dependencies {
-        classpath "com.android.tools.build:gradle:7.4.0"
+        classpath "com.android.tools.build:gradle:8.13.0"
         classpath "org.jetbrains.kotlin:kotlin-gradle-plugin:$kotlin_version"
-        classpath("com.anymore:auto-service-register:0.0.9")
+        classpath("com.anymore:auto-service-register:0.0.11")
         // NOTE: Do not place your application dependencies here; they belong
         // in the individual module build.gradle files
     }
@@ -42,17 +42,17 @@ allprojects {
         mavenCentral()
         maven {
             credentials {
-                username "$ALIYUN_USERNAME"
-                password "$ALIYUN_PASSWORD"
+                username = "$ALIYUN_USERNAME"
+                password = "$ALIYUN_PASSWORD"
             }
-            url 'https://packages.aliyun.com/maven/repository/2202395-release-jr0puW/'
+            url = 'https://packages.aliyun.com/maven/repository/2202395-release-jr0puW/'
         }
         maven {
             credentials {
-                username "$ALIYUN_USERNAME"
-                password "$ALIYUN_PASSWORD"
+                username = "$ALIYUN_USERNAME"
+                password = "$ALIYUN_PASSWORD"
             }
-            url 'https://packages.aliyun.com/maven/repository/2202395-snapshot-3OoSzj/'
+            url = 'https://packages.aliyun.com/maven/repository/2202395-snapshot-3OoSzj/'
         }
     }
     configurations.all {

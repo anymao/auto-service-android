@@ -33,6 +33,99 @@ auto-service-android 是一个 Android 服务加载框架，类似于 Google Aut
 ./gradlew :auto-service-plugin:uploadArchives
 ```
 
+## Developing and Debugging auto-service-plugin
+
+在开发和调试 auto-service-plugin 模块时，推荐使用 **buildSrc 模式**以实现快速迭代，无需每次都发布到 Maven 仓库。
+
+### 启用 buildSrc 开发模式
+
+1. **修改 buildSrc 目录下 build.gradle.bak 为 build.gradle**
+   ```bash
+   mv buildSrc/build.gradle.bak buildSrc/build.gradle
+   ```
+
+2. **注释掉根目录下 build.gradle 中的插件依赖**
+   ```groovy
+   // dependencies {
+   //     classpath("com.anymore:auto-service-register:x.x.x")
+   // }
+   ```
+
+3. **app/build.gradle 文件中，注释掉 `id 'auto-service'` 引用**
+   ```groovy
+   // plugins {
+   //     id 'auto-service'
+   // }
+   ```
+
+4. **app/build.gradle 文件中，直接应用插件类**
+   ```groovy
+   import com.anymore.auto.gradle.AutoServiceRegisterPlugin
+   apply plugin: AutoServiceRegisterPlugin
+   ```
+
+### 开发迭代流程
+
+```
+1. 修改 auto-service-plugin/src/main/groovy 中的代码
+2. ./gradlew clean
+3. ./gradlew :app:assembleDebug  (插件会自动编译)
+4. 验证 ServiceRegistry.java 是否正确生成
+5. 循环以上步骤
+```
+
+### 恢复到模块模式（开发完成后）
+
+1. 将 `buildSrc/build.gradle` 重命名回 `build.gradle.bak`
+   ```bash
+   mv buildSrc/build.gradle buildSrc/build.gradle.bak
+   ```
+
+2. 恢复根目录 build.gradle 中的插件依赖
+   ```groovy
+   dependencies {
+       classpath("com.anymore:auto-service-register:0.0.9")
+   }
+   ```
+
+3. 恢复 app/build.gradle 中的插件引用
+   ```groovy
+   plugins {
+       id 'auto-service'
+   }
+   ```
+
+### 调试技巧
+
+**启用详细日志**：
+```groovy
+autoService {
+    logLevel = "VERBOSE"  // 可选: DEBUG, INFO, WARN, ERROR
+}
+```
+
+**查看 Task 执行情况**：
+```bash
+./gradlew :app:tasks --all
+./gradlew :app:tasks --group=build
+./gradlew :app:assembleDebug --dry-run
+```
+
+**验证插件是否加载**：
+```bash
+./gradlew projects
+# 应该看到 autoService 扩展已注册
+```
+
+### buildSrc vs 模块模式对比
+
+| 特性 | buildSrc 模式 | 模块模式 |
+|------|----------------|----------|
+| 构建速度 | 快（修改立即生效） | 较慢（需先构建插件） |
+| 发布流程 | 需要额外配置步骤 | 标准流程 |
+| 调试便利性 | 高 | 中 |
+| 适用场景 | 日常开发调试 | 发布准备、CI/CD |
+
 ## Module Architecture
 
 项目由四个主要模块组成：
