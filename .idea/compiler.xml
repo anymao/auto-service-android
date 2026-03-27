@@ -1,10 +1,20 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <project version="4">
   <component name="CompilerConfiguration">
-    <bytecodeTargetLevel target="11">
-      <module name="auto-service-android.buildSrc" target="1.7" />
-      <module name="auto-service-android.buildSrc.main" target="1.7" />
-      <module name="auto-service-android.buildSrc.test" target="1.7" />
+    <bytecodeTargetLevel target="1.8">
+      <module name="auto-service-android.app" target="11" />
+      <module name="auto-service-android.auto-service-loader" target="11" />
+      <module name="auto-service-android.auto-service-loader.main" target="11" />
+      <module name="auto-service-android.auto-service-loader.test" target="11" />
+      <module name="auto-service-android.auto-service-plugin" target="11" />
+      <module name="auto-service-android.auto-service-plugin.main" target="11" />
+      <module name="auto-service-android.auto-service-plugin.test" target="11" />
+      <module name="auto-service-android.auto-service-registry" target="11" />
+      <module name="auto-service-android.auto-service-registry.main" target="11" />
+      <module name="auto-service-android.auto-service-registry.test" target="11" />
+      <module name="auto-service-android.buildSrc" target="11" />
+      <module name="auto-service-android.buildSrc.main" target="11" />
+      <module name="auto-service-android.buildSrc.test" target="11" />
     </bytecodeTargetLevel>
   </component>
 </project>

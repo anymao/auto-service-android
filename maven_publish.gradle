@@ -1,42 +1,76 @@
-apply plugin: 'maven'
+// maven_publish.gradle
+// 兼容 Gradle 7.x 的 Maven 发布配置
 
-afterEvaluate {
+apply plugin: 'maven-publish'
 
-//    task javadocJar(type: Jar, dependsOn: javadoc) {
-//        classifier = 'javadoc'
-//        from 'build/docs/javadoc'
-//    }
+// 创建 sources jar
+task sourcesJar(type: Jar) {
+    from sourceSets.main.allSource
+    classifier = 'sources'
+}
 
-    task sourcesJar(type: Jar) {
-        from sourceSets.main.allSource
-        classifier = 'sources'
-    }
+// 配置 publishing
+publishing {
+    publications {
+        // 发布 jar
+        maven(MavenPublication) {
+            from components.java
+            artifact sourcesJar
 
-    artifacts {
-        archives jar
-//        archives javadocJar
-        archives sourcesJar
-    }
+            // artifactId 配置：优先使用项目属性，否则使用项目名称
+            artifactId = project.hasProperty('artifactId') ? project.artifactId : project.name
 
-    uploadArchives {
-        repositories {
-            mavenDeployer {
-                repository(url: 'https://packages.aliyun.com/maven/repository/2202395-release-jr0puW/') {
-                    authentication(
-                            userName: "$maven_username",
-                            password: "$maven_password"
-                    )
+            // 配置 POM
+            pom {
+                name = project.name
+                description = project.description ?: "Auto-service-android library"
+                url = "https://github.com/anymore/auto-service-android"
+
+                licenses {
+                    license {
+                        name = 'The Apache License, Version 2.0'
+                        url = 'http://www.apache.org/licenses/LICENSE-2.0.txt'
+                    }
                 }
-                snapshotRepository(url: 'https://packages.aliyun.com/maven/repository/2202395-snapshot-3OoSzj/') {
-                    authentication(
-                            userName: "$maven_username",
-                            password: "$maven_password"
-                    )
+
+                developers {
+                    developer {
+                        id = 'anymore'
+                        name = 'anymore'
+                        email = 'any_lymao@qq.com'
+                    }
                 }
-                pom.version = project.version
-                pom.artifactId = artifactId
-                pom.groupId = project.group
+
+                scm {
+                    connection = 'scm:git:github.com/anymore/auto-service-android.git'
+                    developerConnection = 'scm:git:github.com/anymore/auto-service-android.git'
+                    url = 'https://github.com/anymore/auto-service-android'
+                }
             }
         }
     }
+
+    repositories {
+        maven {
+            // 判断是 release 还是 snapshot
+            def releasesRepoUrl = "https://packages.aliyun.com/maven/repository/2202395-release-jr0puW/"
+            def snapshotsRepoUrl = "https://packages.aliyun.com/maven/repository/2202395-snapshot-3OoSzj/"
+
+            url = version.endsWith('SNAPSHOT') ? snapshotsRepoUrl : releasesRepoUrl
+
+            println("Maven Username: $maven_username")
+
+            credentials {
+                username = "$maven_username"
+                password = "$maven_password"
+            }
+        }
+    }
+}
+
+// 保留旧的 uploadArchives 任务作为向后兼容
+tasks.register('uploadArchives') {
+    dependsOn 'publish'
+    group = 'publishing'
+    description = 'Publishes all publications produced by this project to configured repositories'
 }

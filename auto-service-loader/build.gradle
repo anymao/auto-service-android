@@ -1,18 +1,19 @@
 plugins {
     id 'java-library'
     id 'kotlin'
-    id 'maven'
 }
+// maven 插件在 Gradle 7.x 中已废弃，暂时注释
+// apply plugin: 'maven'
 apply from:"../maven_publish.gradle"
 
 java {
-    sourceCompatibility = JavaVersion.VERSION_1_8
-    targetCompatibility = JavaVersion.VERSION_1_8
+    sourceCompatibility = JavaVersion.VERSION_11
+    targetCompatibility = JavaVersion.VERSION_11
 }
 
 dependencies {
     implementation "org.jetbrains.kotlin:kotlin-stdlib:$kotlin_version"
-    api("com.anymore:auto-service-annotation:0.0.8")
+    api("com.anymore:auto-service-annotation:0.0.9")
     compileOnly("com.anymore:auto-service-registry:0.0.7-SNAPSHOT")
 
 //    compileOnly project(path: ':auto-service-registry')

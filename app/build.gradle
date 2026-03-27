@@ -1,3 +1,4 @@
+//import com.anymore.auto.gradle.AutoServiceRegisterPlugin
 plugins {
     id 'com.android.application'
     id 'kotlin-android'
@@ -5,13 +6,13 @@ plugins {
 }
 //apply plugin: AutoServiceRegisterPlugin
 android {
-    compileSdkVersion 30
-    buildToolsVersion "30.0.3"
+    namespace 'com.anymore.auto_service_android.demo'
+    compileSdk 33
 
     defaultConfig {
         applicationId "com.anymore.auto_service_android.demo"
-        minSdkVersion 17
-        targetSdkVersion 30
+        minSdk 17
+        targetSdk 33
         multiDexEnabled true
 
         versionCode 1
@@ -62,8 +63,8 @@ dependencies {
     implementation 'androidx.appcompat:appcompat:1.2.0'
     implementation 'com.google.android.material:material:1.2.1'
     implementation 'androidx.constraintlayout:constraintlayout:2.0.1'
-    api("com.anymore:auto-service-loader:0.0.8")
-
+    api("com.anymore:auto-service-loader:0.0.9")
+//    api project(":auto-service-loader")
     testImplementation 'junit:junit:4.+'
     androidTestImplementation 'androidx.test.ext:junit:1.1.2'
     androidTestImplementation 'androidx.test.espresso:espresso-core:3.3.0'
