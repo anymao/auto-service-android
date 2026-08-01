@@ -25,7 +25,7 @@ dependencies {
     compileOnly(gradleApi())
     compileOnly(localGroovy())
     compileOnly("com.android.tools.build:gradle:8.13.0")
-    implementation("com.anymore:auto-service-annotation:0.0.10")
+    implementation("com.anymore:auto-service-annotation:$VERSION")
     implementation('com.squareup:javapoet:1.13.0')
     implementation("com.android.tools.build:gradle:8.13.0")
     implementation("commons-io:commons-io:2.8.0")

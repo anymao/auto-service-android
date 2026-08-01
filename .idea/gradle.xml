@@ -4,6 +4,17 @@
   <component name="GradleSettings">
     <option name="linkedExternalProjectsSettings">
       <GradleProjectSettings>
+        <compositeConfiguration>
+          <compositeBuild compositeDefinitionSource="SCRIPT">
+            <builds>
+              <build path="$PROJECT_DIR$/buildSrc" name="buildSrc">
+                <projects>
+                  <project path="$PROJECT_DIR$/buildSrc" />
+                </projects>
+              </build>
+            </builds>
+          </compositeBuild>
+        </compositeConfiguration>
         <option name="testRunner" value="CHOOSE_PER_TEST" />
         <option name="externalProjectPath" value="$PROJECT_DIR$" />
         <option name="gradleJvm" value="17" />
@@ -13,7 +24,8 @@
             <option value="$PROJECT_DIR$/app" />
             <option value="$PROJECT_DIR$/auto-service-annotation" />
             <option value="$PROJECT_DIR$/auto-service-loader" />
-            <option value="$PROJECT_DIR$/auto-service-plugin" />
+            <option value="$PROJECT_DIR$/auto-service-registry" />
+            <option value="$PROJECT_DIR$/buildSrc" />
           </set>
         </option>
       </GradleProjectSettings>
