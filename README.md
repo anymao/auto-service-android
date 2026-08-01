@@ -78,7 +78,7 @@ dependencies {
 }
 ```
 
-`auto-service-loader` 会传递提供 `@AutoService` 注解；如需显式依赖，也可单独引入 `com.anymore:auto-service-annotation:0.0.11`。
+`auto-service-loader` 会传递提供 `@AutoService` 注解；如需显式依赖，也可单独引入 `com.anymore:auto-service-annotation:0.0.12`。
 
 ### 3. 标记服务实现
 
