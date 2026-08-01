@@ -4,7 +4,7 @@
 
 它适合把同一业务接口的多个实现解耦到不同模块或依赖中，例如启动任务、能力适配器和可选功能组件。框架提供优先级、别名、线程安全的惰性单例、编译期必选实现检查，以及对三方实现的排除规则。
 
-当前仓库版本为 `0.0.11`。仓库的构建基线为 AGP `8.13.0`、Gradle `8.13`、Kotlin `2.1.0`；使用新版本插件前请在自己的 Debug 和 Release 变体上完成构建验证。
+当前仓库版本为 `0.0.12`。仓库的构建基线为 AGP `8.13.0`、Gradle `8.13`、Kotlin `2.1.0`；使用新版本插件前请在自己的 Debug 和 Release 变体上完成构建验证。
 
 ## 特性
 
@@ -55,7 +55,7 @@ buildscript {
     }
 
     dependencies {
-        classpath("com.anymore:auto-service-register:0.0.11")
+        classpath("com.anymore:auto-service-register:0.0.12")
     }
 }
 ```
@@ -74,7 +74,7 @@ plugins {
 }
 
 dependencies {
-    api("com.anymore:auto-service-loader:0.0.11")
+    api("com.anymore:auto-service-loader:0.0.12")
 }
 ```
 
@@ -256,6 +256,7 @@ flowchart TB
 ```bash
 ./gradlew :auto-service-annotation:publish
 ./gradlew :auto-service-loader:publish
+./gradlew :auto-service-registry:publish
 ./gradlew :auto-service-plugin:publish
 ```
 

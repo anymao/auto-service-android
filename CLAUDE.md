@@ -18,7 +18,7 @@ auto-service-android 是一个 Android 服务加载框架，类似于 Google Aut
 - 别名机制
 - 排除规则
 
-当前版本：**0.0.11**（定义在 `gradle.properties` 的 `VERSION` 属性中）。
+当前版本：**0.0.12**（定义在 `gradle.properties` 的 `VERSION` 属性中）。
 
 ## Build Commands
 
@@ -33,6 +33,7 @@ auto-service-android 是一个 Android 服务加载框架，类似于 Google Aut
 # 项目已迁移到 maven-publish 插件，uploadArchives 任务委托到 publish
 ./gradlew :auto-service-annotation:publish
 ./gradlew :auto-service-loader:publish
+./gradlew :auto-service-registry:publish
 ./gradlew :auto-service-plugin:publish
 
 # 或使用兼容的 uploadArchives 别名
@@ -41,9 +42,10 @@ auto-service-android 是一个 Android 服务加载框架，类似于 Google Aut
 
 ## 当前分支说明
 
-当前分支 `feature/agp8.13.0` 将 AGP 从 7.4.0 升级到 8.13.0。主要变更：
-- 插件中使用 `variant.javaCompileProvider` 替代已废弃的 `variant.javaCompile`
-- 编译输出目录适配 AGP 8.x 的新路径结构
+当前分支 `feature/agp8.13.0` 已完成 AGP 8.13.0 适配。主要变更：
+- 插件通过 `ApplicationAndroidComponentsExtension` 注册每个应用变体的转换任务
+- 使用 `ScopedArtifacts.Scope.PROJECT` 和 `ScopedArtifact.CLASSES` 接入类产物转换
+- 转换任务将服务实现类与生成的 `ServiceRegistry` 一并写入变体最终类产物
 - Gradle 版本从 7.5 升级到 8.13
 
 ## Developing and Debugging auto-service-plugin
@@ -62,7 +64,7 @@ auto-service-android 是一个 Android 服务加载框架，类似于 Google Aut
 2. **注释掉根目录下 build.gradle 中的插件依赖**
    ```groovy
    // dependencies {
-   //     classpath("com.anymore:auto-service-register:0.0.11")
+   //     classpath("com.anymore:auto-service-register:0.0.12")
    // }
    ```
 
@@ -99,7 +101,7 @@ auto-service-android 是一个 Android 服务加载框架，类似于 Google Aut
 2. 恢复根目录 build.gradle 中的插件依赖
    ```groovy
    dependencies {
-       classpath("com.anymore:auto-service-register:0.0.11")
+       classpath("com.anymore:auto-service-register:0.0.12")
    }
    ```
 
@@ -161,7 +163,7 @@ autoService {
 
 ### 3. auto-service-plugin
 Gradle 插件模块，在编译期扫描所有 `@AutoService` 注解并生成 `ServiceRegistry.java`。使用 Java 11 编译目标。核心类：
-- `AutoServiceRegisterPlugin`: 插件入口，注册到 application 模块，监听 `applicationVariants`
+- `AutoServiceRegisterPlugin`: 插件入口，注册到 application 模块，并通过 Android Components API 为每个变体配置 Scoped Artifacts 类产物转换
 - `AutoServiceRegisterTask`: Gradle Task，持有 classpath、targetDir、排除规则等配置，委托给 Action 执行
 - `AutoServiceRegisterAction`: 核心扫描逻辑 — 遍历 classpath 中的 .class 和 .jar 文件，用 Javassist 解析注解，按 PriorityQueue 排序，用 JavaPoet 生成注册代码，执行编译预检查
 - `AutoServiceExtension`: 配置扩展，支持 `checkImplementation`、`sourceCompatibility`、`logLevel`、`require()`、`excludeClassName()`、`excludeAlias()`、`exclude()` 等配置
@@ -169,7 +171,7 @@ Gradle 插件模块，在编译期扫描所有 `@AutoService` 注解并生成 `S
 - `Logger`: 插件日志工具，支持 VERBOSE/DEBUG/INFO/WARN/ERROR 五个级别
 
 ### 4. auto-service-registry
-运行时的 `ServiceRegistry` 存根模块。`settings.gradle` 中已注释掉此模块的源码编译，改为通过 Maven 发布 `0.0.7-SNAPSHOT`。其 `ServiceRegistry` 类仅包含抛异常的存根方法，实际实现由插件生成的代码在编译期替换。
+运行时的 `ServiceRegistry` 存根模块，作为项目子模块参与编译并以 `0.0.12` 发布。其类提供 loader 的编译期类型依赖，实际服务索引由插件生成的同名实现写入应用最终类产物。
 
 ## Code Generation Flow
 

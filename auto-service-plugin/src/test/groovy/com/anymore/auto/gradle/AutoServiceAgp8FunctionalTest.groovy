@@ -59,6 +59,78 @@ autoService {
         assert new File(testProjectDir, 'app/build/outputs/apk/release/app-release-unsigned.apk').isFile()
     }
 
+    @Test
+    void debugAndReleaseTransformsPreserveServiceClassesAndGenerateRegistry() {
+        copyFixture('agp8')
+
+        def result = GradleRunner.create()
+                .withProjectDir(testProjectDir)
+                .withPluginClasspath()
+                .withArguments(':app:verifyAutoServiceOutputs', '--stacktrace', '--console=plain')
+                .build()
+
+        assert result.output.contains('androidAutoServiceRegisterDebug'): result.output
+        assert result.output.contains('androidAutoServiceRegisterRelease'): result.output
+    }
+
+    @Test
+    void generatedRegistryLoadsServicesThroughServiceLoaderAtRuntime() {
+        copyFixture('agp8')
+
+        def result = GradleRunner.create()
+                .withProjectDir(testProjectDir)
+                .withPluginClasspath()
+                .withArguments(':app:verifyAutoServiceRuntime', '--stacktrace', '--console=plain')
+                .build()
+
+        assert result.output.contains('androidAutoServiceRegisterDebug'): result.output
+    }
+
+    @Test
+    void excludedServiceIsNotReturnedByGeneratedRegistry() {
+        copyFixture('agp8')
+        new File(testProjectDir, 'app/build.gradle') << '''
+
+autoService {
+    excludeClassName('test\\\\.sample\\\\.ServiceImpl')
+}
+'''
+
+        def result = GradleRunner.create()
+                .withProjectDir(testProjectDir)
+                .withPluginClasspath()
+                .withArguments(':app:verifyExcludedAutoServiceRuntime', '--stacktrace', '--console=plain')
+                .build()
+
+        assert result.output.contains('androidAutoServiceRegisterDebug'): result.output
+    }
+
+    @Test
+    void generatedRegistryFiltersMultipleServicesByAliasAtRuntime() {
+        copyFixture('agp8')
+        File source = new File(testProjectDir, 'app/src/main/java/test/sample/SecondaryServiceImpl.java')
+        source.text = '''
+package test.sample;
+
+import com.anymore.auto.AutoService;
+
+@AutoService(value = Runnable.class, alias = "secondary", priority = 10)
+public final class SecondaryServiceImpl implements Runnable {
+    @Override
+    public void run() {
+    }
+}
+'''
+
+        def result = GradleRunner.create()
+                .withProjectDir(testProjectDir)
+                .withPluginClasspath()
+                .withArguments(':app:verifyAliasedAutoServiceRuntime', '--stacktrace', '--console=plain')
+                .build()
+
+        assert result.output.contains('androidAutoServiceRegisterDebug'): result.output
+    }
+
     private void copyFixture(String fixtureName) {
         URL fixture = getClass().getResource("/fixtures/${fixtureName}")
         assert fixture != null: "找不到测试夹具：${fixtureName}"

@@ -20,3 +20,92 @@ dependencies {
     compileOnly files('../libs/auto-service-annotation.jar')
     implementation files('../libs/auto-service-loader.jar')
 }
+
+tasks.register('verifyAutoServiceOutputs') {
+    dependsOn 'assembleDebug', 'assembleRelease'
+
+    doLast {
+        ['Debug', 'Release'].each { variant ->
+            def transformTask = tasks.named("androidAutoServiceRegister${variant}").get()
+            def output = transformTask.outputJar.get().asFile
+            assert output.isFile(): "${variant} 变换输出不存在：${output}"
+
+            def archive = new java.util.zip.ZipFile(output)
+            try {
+                assert archive.getEntry('test/sample/ServiceImpl.class') != null: "${variant} 输出缺少服务实现类"
+                assert archive.getEntry('com/anymore/auto/ServiceRegistry.class') != null: "${variant} 输出缺少生成的服务注册表"
+            } finally {
+                archive.close()
+            }
+        }
+    }
+}
+
+tasks.register('verifyAutoServiceRuntime') {
+    dependsOn 'assembleDebug'
+
+    doLast {
+        def transformTask = tasks.named('androidAutoServiceRegisterDebug').get()
+        def output = transformTask.outputJar.get().asFile
+        def loaderJar = file('../libs/auto-service-loader.jar')
+        def kotlinRuntime = Class.forName('kotlin.Unit').protectionDomain.codeSource.location
+        def classLoader = new java.net.URLClassLoader(
+                [output.toURI().toURL(), loaderJar.toURI().toURL(), kotlinRuntime] as URL[],
+                ClassLoader.getPlatformClassLoader())
+        try {
+            def serviceLoaderClass = classLoader.loadClass('com.anymore.auto.ServiceLoader')
+            def services = serviceLoaderClass.getMethod('load', Class, String).invoke(null, Runnable.class, '')
+            def iterator = (services as Iterable).iterator()
+            assert iterator.hasNext(): '生成的注册表未发现 Runnable 服务'
+            assert iterator.next() instanceof Runnable: '生成的服务不是 Runnable 实现'
+            assert !iterator.hasNext(): '夹具只声明了一个 Runnable 服务'
+        } finally {
+            classLoader.close()
+        }
+    }
+}
+
+tasks.register('verifyExcludedAutoServiceRuntime') {
+    dependsOn 'assembleDebug'
+
+    doLast {
+        def transformTask = tasks.named('androidAutoServiceRegisterDebug').get()
+        def output = transformTask.outputJar.get().asFile
+        def loaderJar = file('../libs/auto-service-loader.jar')
+        def kotlinRuntime = Class.forName('kotlin.Unit').protectionDomain.codeSource.location
+        def classLoader = new java.net.URLClassLoader(
+                [output.toURI().toURL(), loaderJar.toURI().toURL(), kotlinRuntime] as URL[],
+                ClassLoader.getPlatformClassLoader())
+        try {
+            def serviceLoaderClass = classLoader.loadClass('com.anymore.auto.ServiceLoader')
+            def services = serviceLoaderClass.getMethod('load', Class, String).invoke(null, Runnable.class, '')
+            assert !(services as Iterable).iterator().hasNext(): '排除规则后的注册表不应返回 Runnable 服务'
+        } finally {
+            classLoader.close()
+        }
+    }
+}
+
+tasks.register('verifyAliasedAutoServiceRuntime') {
+    dependsOn 'assembleDebug'
+
+    doLast {
+        def transformTask = tasks.named('androidAutoServiceRegisterDebug').get()
+        def output = transformTask.outputJar.get().asFile
+        def loaderJar = file('../libs/auto-service-loader.jar')
+        def kotlinRuntime = Class.forName('kotlin.Unit').protectionDomain.codeSource.location
+        def classLoader = new java.net.URLClassLoader(
+                [output.toURI().toURL(), loaderJar.toURI().toURL(), kotlinRuntime] as URL[],
+                ClassLoader.getPlatformClassLoader())
+        try {
+            def serviceLoaderClass = classLoader.loadClass('com.anymore.auto.ServiceLoader')
+            def services = serviceLoaderClass.getMethod('load', Class, String).invoke(null, Runnable.class, 'secondary')
+            def iterator = (services as Iterable).iterator()
+            assert iterator.hasNext(): '别名为 secondary 的服务未被发现'
+            assert iterator.next().class.name == 'test.sample.SecondaryServiceImpl': '别名过滤返回了错误的服务实现'
+            assert !iterator.hasNext(): '别名过滤后应只保留一个服务实现'
+        } finally {
+            classLoader.close()
+        }
+    }
+}
