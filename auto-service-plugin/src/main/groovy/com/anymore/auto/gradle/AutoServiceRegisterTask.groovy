@@ -1,43 +1,111 @@
 package com.anymore.auto.gradle
 
 import org.gradle.api.DefaultTask
-import org.gradle.api.file.FileCollection
+import org.gradle.api.GradleException
+import org.gradle.api.file.ConfigurableFileCollection
+import org.gradle.api.file.Directory
+import org.gradle.api.file.RegularFile
+import org.gradle.api.provider.ListProperty
+import org.gradle.api.provider.MapProperty
+import org.gradle.api.provider.Property
+import org.gradle.api.tasks.Classpath
+import org.gradle.api.tasks.Input
+import org.gradle.api.tasks.InputFiles
+import org.gradle.api.tasks.OutputFile
+import org.gradle.api.tasks.PathSensitive
+import org.gradle.api.tasks.PathSensitivity
 import org.gradle.api.tasks.TaskAction
 
-/**
- * Created by anymore on 2022/4/3.
- */
-class AutoServiceRegisterTask extends DefaultTask {
+import javax.tools.ToolProvider
+import java.util.jar.JarEntry
+import java.util.jar.JarFile
+import java.util.jar.JarOutputStream
 
-    private FileCollection classpath
-    private File targetDir
-    private Map<String, Set<String>> requiredServices
-    private Set<ExclusiveRule> exclusiveRules
+abstract class AutoServiceRegisterTask extends DefaultTask {
 
+    @InputFiles @Classpath
+    abstract ListProperty<RegularFile> getInputJars()
 
-    AutoServiceRegisterTask() {
-        requiredServices = new HashMap<>()
-        exclusiveRules = new HashSet<>()
-    }
+    @InputFiles @PathSensitive(PathSensitivity.RELATIVE)
+    abstract ListProperty<Directory> getInputDirectories()
 
-    void setTargetDir(File dir) {
-        targetDir = dir
-    }
+    @Classpath
+    abstract ConfigurableFileCollection getCompileClasspath()
 
-    void setClasspath(FileCollection classpath) {
-        this.classpath = classpath
-    }
+    @Input
+    abstract Property<String> getSourceCompatibility()
 
-    void setRequiredServices(Map<String, Set<String>> requiredServices) {
-        this.requiredServices = requiredServices
-    }
+    @Input
+    abstract MapProperty<String, Set<String>> getServiceRequirements()
 
-    void setExclusiveRules(Set<ExclusiveRule> exclusiveRules) {
-        this.exclusiveRules = exclusiveRules
-    }
+    @Input
+    abstract ListProperty<String> getExcludedClassNamePatterns()
+
+    @Input
+    abstract ListProperty<String> getExcludedAliasPatterns()
+
+    @OutputFile
+    abstract org.gradle.api.file.RegularFileProperty getOutputJar()
 
     @TaskAction
     void run() {
-        didWork(new AutoServiceRegisterAction(classpath, targetDir, requiredServices, exclusiveRules).execute())
+        File sourceDirectory = new File(temporaryDir, 'src')
+        File classesDirectory = new File(temporaryDir, 'classes')
+        project.delete(sourceDirectory, classesDirectory)
+        sourceDirectory.mkdirs()
+        classesDirectory.mkdirs()
+
+        def inputFiles = project.files(inputJars.get().collect { it.asFile }, inputDirectories.get().collect { it.asFile })
+        def rules = toExclusiveRules(excludedClassNamePatterns.get(), excludedAliasPatterns.get())
+        new AutoServiceRegisterAction(inputFiles, sourceDirectory, serviceRequirements.get(), rules).execute()
+        File source = new File(sourceDirectory, 'com/anymore/auto/ServiceRegistry.java')
+        if (source.isFile()) {
+            def compiler = ToolProvider.systemJavaCompiler
+            if (compiler == null) throw new GradleException('当前 JDK 不包含 Java 编译器')
+            def classpath = project.files(inputFiles, compileClasspath).asPath
+            def result = compiler.run(null, null, null, '-classpath', classpath, '-source', sourceCompatibility.get(), '-target', sourceCompatibility.get(), '-d', classesDirectory.absolutePath, source.absolutePath)
+            if (result != 0) throw new GradleException("编译生成的 ServiceRegistry 失败，退出码：${result}")
+        }
+        File output = outputJar.get().asFile
+        output.parentFile.mkdirs()
+        output.withOutputStream { stream ->
+            def entries = new HashSet<String>()
+            def jar = new JarOutputStream(stream)
+            try {
+                inputJars.get().each { AutoServiceRegisterTask.copyJar(it.asFile, jar, entries) }
+                inputDirectories.get().each { AutoServiceRegisterTask.copyDirectory(it.asFile, it.asFile, jar, entries) }
+                AutoServiceRegisterTask.copyDirectory(classesDirectory, classesDirectory, jar, entries)
+            } finally { jar.close() }
+        }
+    }
+
+    private static void copyJar(File file, JarOutputStream output, Set<String> entries) {
+        new JarFile(file).withCloseable { input ->
+            input.entries().each { entry ->
+                if (!entry.directory && entries.add(entry.name)) {
+                    output.putNextEntry(new JarEntry(entry.name))
+                    input.getInputStream(entry).withCloseable { it.transferTo(output) }
+                    output.closeEntry()
+                }
+            }
+        }
+    }
+
+    private static void copyDirectory(File root, File file, JarOutputStream output, Set<String> entries) {
+        if (!file.exists()) return
+        if (file.directory) { file.listFiles()?.each { copyDirectory(root, it, output, entries) }; return }
+        String name = root.toPath().relativize(file.toPath()).toString().replace(File.separatorChar, '/' as char)
+        if (entries.add(name)) { output.putNextEntry(new JarEntry(name)); file.withInputStream { it.transferTo(output) }; output.closeEntry() }
+    }
+
+    static Set<ExclusiveRule> toExclusiveRules(List<String> classNamePatterns, List<String> aliasPatterns) {
+        if (classNamePatterns.size() != aliasPatterns.size()) {
+            throw new GradleException('排除规则的类名与别名数量不一致')
+        }
+        def rules = new LinkedHashSet<ExclusiveRule>()
+        classNamePatterns.eachWithIndex { String className, int index ->
+            rules.add(new ExclusiveRule(className, aliasPatterns[index]))
+        }
+        return rules
     }
 }

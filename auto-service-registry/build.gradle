@@ -11,8 +11,20 @@ java {
     targetCompatibility = JavaVersion.VERSION_11
 }
 
+compileKotlin {
+    kotlinOptions {
+        jvmTarget = "11"
+    }
+}
+
+compileTestKotlin {
+    kotlinOptions {
+        jvmTarget = "11"
+    }
+}
+
 dependencies {
-    compileOnly("com.anymore:auto-service-loader:0.0.7-SNAPSHOT")
+    compileOnly("com.anymore:auto-service-loader:$VERSION")
 }
 
 group 'com.anymore'

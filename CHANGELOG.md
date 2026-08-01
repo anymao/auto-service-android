@@ -1,5 +1,25 @@
 # 版本变更日志
 
+## v0.0.12 (2026-08-01)
+
+### AGP 8.13 适配与组件发布
+
+- ✅ 完成基于 Android Components 与 Scoped Artifacts 的字节码转换链路适配，支持 debug、release 变体。
+- ✅ 发布 `auto-service-annotation`、`auto-service-loader`、`auto-service-registry` 与 `auto-service-plugin` 的 `0.0.12` 组件到私有 Maven 仓库。
+- ✅ 保持 `ServiceRegistry` 的公开 API 兼容，并通过运行时加载验证服务注册结果。
+
+### 测试与验证
+
+- ✅ 新增 AGP 8.13 功能测试，验证 debug/release 产物保留服务实现类并生成注册表。
+- ✅ 新增运行时测试，验证服务加载、排除规则和多服务别名过滤行为。
+- ✅ 补充排除规则配置不一致时的失败场景单元测试。
+
+### 开发环境
+
+- ✅ 忽略本地 Kotlin 编译缓存，避免诊断日志被误加入版本控制。
+
+---
+
 ## v0.0.11 (2026-03-28)
 
 ### 解决 Gradle 废弃 API 警告

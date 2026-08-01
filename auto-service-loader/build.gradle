@@ -25,10 +25,15 @@ compileTestKotlin {
 
 dependencies {
     implementation "org.jetbrains.kotlin:kotlin-stdlib:$kotlin_version"
-    api("com.anymore:auto-service-annotation:0.0.11")
+    api("com.anymore:auto-service-annotation:$VERSION")
     compileOnly("com.anymore:auto-service-registry:0.0.7-SNAPSHOT")
+    testImplementation 'junit:junit:4.13.2'
 
 //    compileOnly project(path: ':auto-service-registry')
+}
+
+test {
+    useJUnit()
 }
 
 group = 'com.anymore'

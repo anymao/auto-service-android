@@ -1,5 +1,6 @@
 package com.anymore.auto
 
+import java.util.function.Supplier
 
 class ServiceLoader<T> private constructor(
     private val clazz: Class<T>,
@@ -14,7 +15,7 @@ class ServiceLoader<T> private constructor(
         inline fun <reified T> load(alias: String = "") = load(T::class.java, alias)
     }
 
-    private var suppliers: List<SingletonServiceSupplier<T>> = ServiceRegistry.get(clazz, alias)
+    private var suppliers: List<Supplier<T>> = ServiceRegistry.get(clazz, alias)
 
     override fun iterator(): Iterator<T> = ServiceIterator(suppliers)
 
@@ -51,7 +52,7 @@ class ServiceLoader<T> private constructor(
 
 
 
-    private class ServiceIterator<T>(private val serviceSuppliers: List<SingletonServiceSupplier<T>>) :
+    private class ServiceIterator<T>(private val serviceSuppliers: List<Supplier<T>>) :
         Iterator<T> {
 
         private var index = 0
