@@ -1,6 +1,7 @@
 apply plugin: 'java-library'
 apply plugin: 'groovy'
 apply plugin: 'java'
+apply plugin: 'java-gradle-plugin'
 apply from:"../maven_publish.gradle"
 
 repositories {
@@ -31,8 +32,27 @@ dependencies {
     implementation("commons-codec:commons-codec:1.15")
     implementation("org.javassist:javassist:3.28.0-GA")
     implementation("org.jetbrains:annotations:13.0")
+    testImplementation gradleTestKit()
+    testImplementation localGroovy()
+    testImplementation 'junit:junit:4.13.2'
+    testRuntimeOnly project(':auto-service-loader')
+}
 
+test {
+    useJUnit()
+}
 
+gradlePlugin {
+    plugins {
+        autoService {
+            id = 'auto-service'
+            implementationClass = 'com.anymore.auto.gradle.AutoServiceRegisterPlugin'
+        }
+    }
+}
+
+processResources {
+    duplicatesStrategy = DuplicatesStrategy.EXCLUDE
 }
 
 group = 'com.anymore'

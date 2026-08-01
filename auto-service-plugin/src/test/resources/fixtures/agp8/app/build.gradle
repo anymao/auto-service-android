@@ -1,0 +1,22 @@
+plugins {
+    id 'com.android.application' version '8.13.0'
+    id 'auto-service'
+}
+
+android {
+    namespace 'test.sample'
+    compileSdk 35
+
+    defaultConfig {
+        applicationId 'test.sample'
+        minSdk 23
+        targetSdk 35
+        versionCode 1
+        versionName '1.0'
+    }
+}
+
+dependencies {
+    compileOnly files('../libs/auto-service-annotation.jar')
+    implementation files('../libs/auto-service-loader.jar')
+}
