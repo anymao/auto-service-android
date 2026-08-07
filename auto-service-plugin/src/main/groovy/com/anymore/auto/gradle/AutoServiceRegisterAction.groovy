@@ -1,258 +1,41 @@
 package com.anymore.auto.gradle
 
-import com.squareup.javapoet.*
-import org.gradle.api.GradleException
 import org.gradle.api.file.FileCollection
-import org.gradle.api.tasks.TaskAction
 
-import javax.lang.model.element.Modifier
-import java.util.concurrent.atomic.AtomicLong
-import java.util.function.Function
-import java.util.function.Supplier
-
-/**
- * Created by anymore on 2022/4/3.
- */
-class AutoServiceRegisterAction {
+/** 编排扫描、校验与源码生成；Gradle 任务生命周期由外层 Task 管理。 */
+final class AutoServiceRegisterAction {
     final FileCollection classpath
     final File targetDir
     private final Map<String, Set<String>> requiredServices
     private final Set<ExclusiveRule> exclusiveRules
+    private final boolean diagnosticsEnabled
+    private final AutoServiceLog log
 
-    AutoServiceRegisterAction(FileCollection classpath, File targetDir, Map<String, Set<String>> requiredServices, Set<ExclusiveRule> exclusiveRules) {
-        // 过滤掉不存在的文件，避免 Javassist 抛出异常
+    AutoServiceRegisterAction(
+            FileCollection classpath,
+            File targetDir,
+            Map<String, Set<String>> requiredServices,
+            Set<ExclusiveRule> exclusiveRules,
+            boolean diagnosticsEnabled,
+            AutoServiceLog log) {
         this.classpath = classpath.filter { it.exists() }
         this.targetDir = targetDir
-        this.requiredServices = requiredServices
-        this.exclusiveRules = exclusiveRules
+        this.requiredServices = requiredServices ?: Collections.emptyMap()
+        this.exclusiveRules = exclusiveRules ?: Collections.emptySet()
+        this.diagnosticsEnabled = diagnosticsEnabled
+        this.log = log
     }
 
-    private void makeServiceRegistryFile(Map<String, List<ServiceCandidate>> elements) {
-        if (!targetDir.exists()) {
-            targetDir.mkdirs()
-        }
-        final file = createServiceRegistry(elements)
-                .writeToFile(targetDir)
-        Logger.d("Create ServiceRegistry.java Successful: ")
-        Logger.d(" ${file.getAbsolutePath()}")
-    }
-
-    private static JavaFile createServiceRegistry(Map<String, List<ServiceCandidate>> elements) {
-        final pkg = "com.anymore.auto"
-        //Class<?>
-        final WildcardTypeName anyType = WildcardTypeName.subtypeOf(Object.class)
-        final TypeVariableName typeOfS = TypeVariableName.get("S")
-        //ServiceSupplier
-        final ClassName serviceSupplierClassName = ClassName.get(pkg, "ServiceSupplier")
-        //SingletonServiceSupplier
-        final ClassName singletonServiceSupplierClassName = ClassName.get(pkg, "SingletonServiceSupplier")
-        //ServiceLazy
-        final ClassName serviceLazyClassName = ClassName.get(pkg, "ServiceLazy")
-
-        final serviceCreatorsField = FieldSpec.builder(
-                ParameterizedTypeName.get(ClassName.get(Map.class),
-                        ParameterizedTypeName.get(ClassName.get(Class.class), anyType),
-                        ParameterizedTypeName.get(ClassName.get(List.class), ParameterizedTypeName.get(
-                                serviceSupplierClassName, anyType
-                        ))
-                ),
-                "serviceSuppliers",
-                Modifier.PRIVATE, Modifier.STATIC, Modifier.FINAL
-        ).initializer("new \$T<>()", LinkedHashMap.class)
-                .build()
-        final function = TypeSpec.anonymousClassBuilder("")
-                .addSuperinterface(
-                        ParameterizedTypeName.get(
-                                ClassName.get(Function.class),
-                                ParameterizedTypeName.get(ClassName.get(Class.class), anyType),
-                                ParameterizedTypeName.get(ClassName.get(List.class), ParameterizedTypeName.get(serviceSupplierClassName, anyType))
-                        )
-                )
-                .addMethod(
-                        MethodSpec.methodBuilder("apply")
-                                .addModifiers(Modifier.PUBLIC)
-                                .addAnnotation(Override.class)
-                                .addParameter(ParameterizedTypeName.get(ClassName.get(Class.class), anyType), "c")
-                                .addStatement("return new \$T<>()", LinkedList.class)
-                                .returns(ParameterizedTypeName.get(ClassName.get(List.class), ParameterizedTypeName.get(serviceSupplierClassName, anyType)))
-                                .build()
-                ).build()
-        final registerMethod = MethodSpec.methodBuilder("register")
-                .addModifiers(Modifier.PRIVATE, Modifier.STATIC, Modifier.SYNCHRONIZED)
-                .addTypeVariable(typeOfS)
-                .addParameter(
-                        ParameterSpec.builder(
-                                ParameterizedTypeName.get(ClassName.get(Class.class), typeOfS),
-                                "clazz"
-                        ).build()
-                )
-                .addParameter(
-                        ParameterSpec.builder(
-                                ParameterizedTypeName.get(serviceSupplierClassName, typeOfS),
-                                "supplier"
-                        ).build()
-                )
-                .addStatement("serviceSuppliers.computeIfAbsent(\$N,\$L).add(supplier)", "clazz", function)
-                .returns(TypeName.VOID)
-                .build()
-
-        final getMethod = MethodSpec.methodBuilder("get")
-                .addModifiers(Modifier.STATIC, Modifier.SYNCHRONIZED)
-                .addTypeVariable(typeOfS)
-                .addParameter(ParameterSpec.builder(
-                        ParameterizedTypeName.get(ClassName.get(Class.class), typeOfS),
-                        "clazz"
-                ).build())
-                .addParameter(ParameterSpec.builder(String.class, "alias").build())
-                .addCode(CodeBlock.builder()
-                        .addStatement("final \$T<\$T<\$T>> allSuppliers = serviceSuppliers.getOrDefault(clazz, new \$T<\$T<\$T>>())",
-                                List.class, serviceSupplierClassName, anyType, ArrayList.class, serviceSupplierClassName, anyType
-                        )
-                        .addStatement("final \$T<\$T<\$T>> suppliers = new \$T<>()", List.class, serviceSupplierClassName, anyType, LinkedList.class)
-                        .add(CodeBlock.builder()
-                                .beginControlFlow("if (alias != null && alias.length() > 0)")
-                                .beginControlFlow("for (\$T<\$T> supplier:allSuppliers)", serviceSupplierClassName, anyType)
-                                .beginControlFlow("if (\$T.equals(supplier.getAlias(),alias))", ClassName.get("java.util", "Objects"))
-                                .addStatement("suppliers.add(supplier)")
-                                .endControlFlow()
-                                .endControlFlow()
-                                .nextControlFlow("else")
-                                .addStatement("suppliers.addAll(allSuppliers)")
-                                .endControlFlow()
-                                .build())
-                        .addStatement("final \$T<\$T> services = new \$T<>(suppliers.size())",
-                                List.class, ParameterizedTypeName.get(singletonServiceSupplierClassName, typeOfS), ArrayList.class
-                        )
-                        .beginControlFlow("if (!suppliers.isEmpty())")
-                        .beginControlFlow("for (\$T<\$T> supplier : suppliers)", serviceSupplierClassName, anyType)
-                        .addStatement("final \$T<\$T> realSupplier = (\$T<\$T>)supplier.getSupplier()", Supplier.class, typeOfS, Supplier.class, typeOfS)
-                        .beginControlFlow("if (realSupplier instanceof \$T)", singletonServiceSupplierClassName)
-                        .addStatement("services.add((\$T)realSupplier)", singletonServiceSupplierClassName)
-                        .nextControlFlow("else")
-                        .addStatement("services.add(new \$T(realSupplier))", serviceLazyClassName)
-                        .endControlFlow()
-                        .endControlFlow()
-                        .endControlFlow()
-                        .addStatement("return \$T.unmodifiableList(services)", Collections.class)
-                        .build()
-                )
-                .returns(ParameterizedTypeName.get(ClassName.get(List.class), ParameterizedTypeName.get(singletonServiceSupplierClassName, typeOfS)))
-                .build()
-
-        final staticRegisterCode = CodeBlock.builder().with { builder ->
-            final singletonSuppers = new LinkedHashMap<ClassName, String>()
-            final supperCounter = new AtomicLong(0L)
-            elements.each { entry ->
-                final serviceType = ClassName.bestGuess(entry.key)
-                entry.value.each { ServiceCandidate element ->
-                    final implType = ClassName.bestGuess(element.implementationClassName)
-                    if (!element.singleton) {
-                        final supplier = TypeSpec.anonymousClassBuilder("")
-                                .addSuperinterface(ParameterizedTypeName.get(ClassName.get(Supplier), implType))
-                                .addMethod(
-                                        MethodSpec.methodBuilder("get")
-                                                .addAnnotation(Override.class)
-                                                .addModifiers(Modifier.PUBLIC)
-                                                .addStatement("return new \$T()", implType)
-                                                .returns(implType)
-                                                .build()
-                                ).build()
-                        builder.addStatement("register(\$T.class,new \$T<\$T>(\$S,\$L))", serviceType, serviceSupplierClassName, serviceType, element.alias, supplier)
-                    } else {
-                        String supplierName = singletonSuppers.get(implType)
-                        if (TextUtils.isEmpty(supplierName)) {
-                            final singletonSupplier = TypeSpec.anonymousClassBuilder("")
-                                    .addSuperinterface(ParameterizedTypeName.get(singletonServiceSupplierClassName, implType))
-                                    .addMethod(
-                                            MethodSpec.methodBuilder("newInstance")
-                                                    .addAnnotation(Override.class)
-                                                    .addModifiers(Modifier.PUBLIC)
-                                                    .addStatement("return new \$T()", implType)
-                                                    .returns(implType)
-                                                    .build()
-                                    ).build()
-                            supplierName = "supplier" + supperCounter.getAndIncrement()
-                            builder.addStatement("final \$T<\$T> \$N = \$L", ClassName.get(Supplier), implType, supplierName, singletonSupplier)
-                            singletonSuppers.put(implType, supplierName)
-                        }
-                        builder.addStatement("register(\$T.class,new \$T<\$T>(\$S,\$N))", serviceType, serviceSupplierClassName, serviceType, element.alias, supplierName)
-                    }
-                }
-            }
-            builder.build()
-        }
-
-        final serviceRegistry = TypeSpec.classBuilder("ServiceRegistry")
-                .addJavadoc("Automatically generated file by auto-service. DO NOT MODIFY")
-                .addModifiers(Modifier.FINAL)
-                .addAnnotation(AnnotationSpec.builder(SuppressWarnings.class).addMember("value", "\$S", "unchecked").build())
-                .addField(serviceCreatorsField)
-                .addStaticBlock(staticRegisterCode)
-                .addMethod(registerMethod)
-                .addMethod(getMethod)
-                .build()
-        return JavaFile.builder(pkg, serviceRegistry)
-                .build()
-    }
-
-
-    /**
-     * 编译期预检查
-     * @param services build.gradle中通过autoService 配置的必须实现的接口
-     * @param implementedServices 实际项目已经实现的接口
-     * @return 检查结果
-     */
-    private static Collection<Tuple2<String, String>> preCheckRequiredServices(
-            Map<String, Set<String>> services,
-            Map<String, List<ServiceCandidate>> implementedServices) {
-        final result = new LinkedList<Tuple2<String, String>>()
-        services.each { requiredService ->
-            final service = requiredService.key
-            final serviceCandidates = implementedServices.get(service)
-            if (serviceCandidates == null || serviceCandidates.isEmpty()) {
-                requiredService.value.each {
-                    if (TextUtils.isEmpty(it) && requiredService.value.size() == 1) {
-                        result.add(new Tuple2<String, String>(service, ""))
-                    } else {
-                        result.add(new Tuple2<String, String>(service, it))
-                    }
-                }
-            } else {
-                final serviceAliases = serviceCandidates.collect { it.alias }.toSet()
-                requiredService.value.each {
-                    if (!TextUtils.isEmpty(it) && !serviceAliases.contains(it)) {
-                        result.add(new Tuple2<String, String>(service, it))
-                    }
-                }
-            }
-        }
-        return result
-    }
-
-
-    @TaskAction
-    boolean execute() throws Exception {
-        final startTime = System.currentTimeMillis()
-        final catalog = new ClassMetadataScanner(exclusiveRules).scan(classpath.files)
-        final result = catalog.registeredByService()
-        if (!requiredServices.isEmpty()) {
-            final checkResult = preCheckRequiredServices(requiredServices, result)
-            if (!checkResult.isEmpty()) {
-                final builder = new StringBuilder()
-                checkResult.each {
-                    String message
-                    if (TextUtils.isEmpty(it.second)) {
-                        message = "require service ${it.first} but has no implementation"
-                    } else {
-                        message = "require service ${it.first} with alias=\"${it.second}\" but has no implementation"
-                    }
-                    builder.append(message).append('\n')
-                }
-                throw new GradleException("please check autoService required services:\n${builder.toString()}")
-            }
-        }
-        makeServiceRegistryFile(result)
-        Logger.i("used time:${(System.currentTimeMillis() - startTime) / 1000}s")
-        return true
+    ServiceCatalog execute() {
+        long startedAt = System.currentTimeMillis()
+        ServiceCatalog catalog = new ClassMetadataScanner(exclusiveRules, log).scan(classpath.files)
+        new RequiredServiceValidator().validate(requiredServices, catalog)
+        File registry = new ServiceRegistryGenerator().write(catalog, targetDir)
+        File diagnostics = new ServiceRegistryDiagnosticsGenerator().write(
+                catalog, targetDir, diagnosticsEnabled)
+        log.debug("生成注册表：${registry.absolutePath}")
+        log.debug("生成诊断表：${diagnostics.absolutePath}")
+        log.summary(catalog, System.currentTimeMillis() - startedAt)
+        catalog
     }
 }

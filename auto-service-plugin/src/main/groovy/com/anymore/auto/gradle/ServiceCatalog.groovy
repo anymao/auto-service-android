@@ -76,6 +76,26 @@ final class ServiceCatalog {
         Collections.unmodifiableMap(result)
     }
 
+    Map<String, List<ServiceCandidate>> candidatesByService() {
+        Map<String, List<ServiceCandidate>> result = new LinkedHashMap<>()
+        candidatesByService.keySet().sort().each { String serviceClassName ->
+            result.put(serviceClassName, candidatesFor(serviceClassName))
+        }
+        Collections.unmodifiableMap(result)
+    }
+
+    int registeredBindingCount() {
+        registeredByService().values().sum(0) { List<ServiceCandidate> candidates -> candidates.size() } as int
+    }
+
+    int registeredInterfaceCount() {
+        registeredByService().size()
+    }
+
+    int excludedImplementationCount() {
+        excludedCandidates().collect { it.implementationClassName }.toSet().size()
+    }
+
     static boolean isGeneratedReservedClass(String className) {
         className == 'com.anymore.auto.ServiceRegistry' ||
                 className == 'com.anymore.auto.ServiceRegistryDiagnostics' ||

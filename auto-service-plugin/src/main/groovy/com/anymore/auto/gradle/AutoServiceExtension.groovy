@@ -8,13 +8,13 @@ import java.util.function.Function
 class AutoServiceExtension {
     boolean checkImplementation = false
     String sourceCompatibility = "1.7"
-    private HashMap<String, Set<String>> requires = new LinkedHashMap<>()
-    private HashSet<ExclusiveRule> exclusives = new HashSet<>()
+    private Map<String, Set<String>> requires = new LinkedHashMap<>()
+    private Set<ExclusiveRule> exclusives = new LinkedHashSet<>()
     private int logLevel = Logger.INFO
 
-    AutoServiceExtension(boolean checkImplementation, HashMap<String, Set<String>> requires) {
+    AutoServiceExtension(boolean checkImplementation, Map<String, Set<String>> requires) {
         this.checkImplementation = checkImplementation
-        this.requires = requires
+        this.requires = new LinkedHashMap<>(requires)
     }
 
     Map<String, Set<String>> getRequireServices() {
@@ -33,7 +33,7 @@ class AutoServiceExtension {
         requires.computeIfAbsent(service, new Function<String, Set<String>>() {
             @Override
             Set<String> apply(String s) {
-                return new HashSet()
+                return new LinkedHashSet()
             }
         }).add(alias)
     }

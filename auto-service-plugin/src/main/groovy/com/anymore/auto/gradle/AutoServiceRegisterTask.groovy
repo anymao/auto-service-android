@@ -44,8 +44,23 @@ abstract class AutoServiceRegisterTask extends DefaultTask {
     @Input
     abstract ListProperty<String> getExcludedAliasPatterns()
 
+    @Input
+    abstract Property<Boolean> getDiagnosticsEnabled()
+
+    @Input
+    abstract Property<Integer> getLogLevel()
+
+    @Input
+    abstract Property<String> getVariantName()
+
     @OutputFile
     abstract org.gradle.api.file.RegularFileProperty getOutputJar()
+
+    AutoServiceRegisterTask() {
+        diagnosticsEnabled.convention(false)
+        logLevel.convention(Logger.INFO)
+        variantName.convention('unknown')
+    }
 
     @TaskAction
     void run() {
@@ -57,14 +72,32 @@ abstract class AutoServiceRegisterTask extends DefaultTask {
 
         def inputFiles = project.files(inputJars.get().collect { it.asFile }, inputDirectories.get().collect { it.asFile })
         def rules = toExclusiveRules(excludedClassNamePatterns.get(), excludedAliasPatterns.get())
-        new AutoServiceRegisterAction(inputFiles, sourceDirectory, serviceRequirements.get(), rules).execute()
-        File source = new File(sourceDirectory, 'com/anymore/auto/ServiceRegistry.java')
-        if (source.isFile()) {
+        AutoServiceLog log = new AutoServiceLog(logLevel.get(), variantName.get())
+        new AutoServiceRegisterAction(
+                inputFiles,
+                sourceDirectory,
+                serviceRequirements.get(),
+                rules,
+                diagnosticsEnabled.get(),
+                log).execute()
+        List<File> sources = []
+        sourceDirectory.eachFileRecurse { File source ->
+            if (source.file && source.name.endsWith('.java')) sources.add(source)
+        }
+        sources.sort { File left, File right -> left.absolutePath <=> right.absolutePath }
+        if (!sources.empty) {
             def compiler = ToolProvider.systemJavaCompiler
             if (compiler == null) throw new GradleException('当前 JDK 不包含 Java 编译器')
             def classpath = project.files(inputFiles, compileClasspath).asPath
-            def result = compiler.run(null, null, null, '-classpath', classpath, '-source', sourceCompatibility.get(), '-target', sourceCompatibility.get(), '-d', classesDirectory.absolutePath, source.absolutePath)
-            if (result != 0) throw new GradleException("编译生成的 ServiceRegistry 失败，退出码：${result}")
+            List<String> arguments = [
+                    '-classpath', classpath,
+                    '-source', sourceCompatibility.get(),
+                    '-target', sourceCompatibility.get(),
+                    '-d', classesDirectory.absolutePath
+            ]
+            arguments.addAll(sources*.absolutePath)
+            def result = compiler.run(null, null, null, arguments as String[])
+            if (result != 0) throw new GradleException("编译 auto-service 生成源码失败，退出码：${result}")
         }
         File output = outputJar.get().asFile
         output.parentFile.mkdirs()

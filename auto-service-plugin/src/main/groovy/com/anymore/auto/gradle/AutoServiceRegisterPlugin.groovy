@@ -30,6 +30,9 @@ class AutoServiceRegisterPlugin implements Plugin<Project> {
                             extension.exclusiveRules.collect { it.className })
                     configuredTask.excludedAliasPatterns.set(
                             extension.exclusiveRules.collect { it.alias })
+                    configuredTask.diagnosticsEnabled.set(variant.debuggable)
+                    configuredTask.logLevel.set(extension.logLevel)
+                    configuredTask.variantName.set(variant.name)
                 }
 
                 def scopedOperation = variant.artifacts.forScope(ScopedArtifacts.Scope.PROJECT).use(task)

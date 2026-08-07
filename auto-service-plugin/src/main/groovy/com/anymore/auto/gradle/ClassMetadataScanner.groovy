@@ -20,11 +20,13 @@ final class ClassMetadataScanner {
     private static final String AUTO_SERVICE_ANNOTATION = 'com.anymore.auto.AutoService'
 
     private final Set<ExclusiveRule> exclusiveRules
+    private final AutoServiceLog log
 
-    ClassMetadataScanner(Set<ExclusiveRule> exclusiveRules) {
+    ClassMetadataScanner(Set<ExclusiveRule> exclusiveRules, AutoServiceLog log = null) {
         this.exclusiveRules = exclusiveRules == null
                 ? Collections.emptySet()
                 : new LinkedHashSet<>(exclusiveRules)
+        this.log = log
     }
 
     ServiceCatalog scan(Collection<File> inputs) {
@@ -102,7 +104,7 @@ final class ClassMetadataScanner {
                     : "className=${rule.className}, alias=${rule.alias}"
 
             readServiceClassNames(annotation).each { String serviceClassName ->
-                catalog.addCandidate(new ServiceCandidate(
+                ServiceCandidate candidate = new ServiceCandidate(
                         serviceClassName,
                         implementationClassName,
                         priority,
@@ -110,7 +112,11 @@ final class ClassMetadataScanner {
                         singleton,
                         status,
                         exclusionRule,
-                        origin))
+                        origin)
+                catalog.addCandidate(candidate)
+                log?.debug("发现候选：${implementationClassName} -> ${serviceClassName}, " +
+                        "status=${status}, source=${origin.displayName()}" +
+                        (exclusionRule == null ? '' : ", excludedBy=${exclusionRule}"))
             }
         } catch (GradleException exception) {
             throw exception

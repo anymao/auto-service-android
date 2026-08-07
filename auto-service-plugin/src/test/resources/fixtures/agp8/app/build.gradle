@@ -35,6 +35,7 @@ tasks.register('verifyAutoServiceOutputs') {
             try {
                 assert archive.getEntry('test/sample/ServiceImpl.class') != null: "${variant} 输出缺少服务实现类"
                 assert archive.getEntry('com/anymore/auto/ServiceRegistry.class') != null: "${variant} 输出缺少生成的服务注册表"
+                assert archive.getEntry('com/anymore/auto/ServiceRegistryDiagnostics.class') != null: "${variant} 输出缺少生成的诊断注册表"
             } finally {
                 archive.close()
             }
@@ -61,6 +62,9 @@ tasks.register('verifyAutoServiceRuntime') {
             assert iterator.hasNext(): '生成的注册表未发现 Runnable 服务'
             assert iterator.next() instanceof Runnable: '生成的服务不是 Runnable 实现'
             assert !iterator.hasNext(): '夹具只声明了一个 Runnable 服务'
+            def report = serviceLoaderClass.getMethod('diagnose', Class, String).invoke(null, Runnable.class, '')
+            assert report.availability.name() == 'AVAILABLE': 'Debug 诊断应可用'
+            assert report.registeredCount == 1: 'Debug 诊断应包含注册项'
         } finally {
             classLoader.close()
         }
@@ -83,6 +87,9 @@ tasks.register('verifyExcludedAutoServiceRuntime') {
             def serviceLoaderClass = classLoader.loadClass('com.anymore.auto.ServiceLoader')
             def services = serviceLoaderClass.getMethod('load', Class, String).invoke(null, Runnable.class, '')
             assert !(services as Iterable).iterator().hasNext(): '排除规则后的注册表不应返回 Runnable 服务'
+            def report = serviceLoaderClass.getMethod('diagnose', Class, String).invoke(null, Runnable.class, '')
+            assert report.entries.size() == 1: '诊断应保留排除候选'
+            assert report.entries[0].status.name() == 'EXCLUDED': '诊断候选状态应为 EXCLUDED'
         } finally {
             classLoader.close()
         }
