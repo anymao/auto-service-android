@@ -1,103 +1,91 @@
-## MODIFIED Requirements
+# Gradle 构建配置规范
 
-### Requirement: Android Gradle Plugin 版本兼容性
-项目 SHALL 使用 Android Gradle Plugin 7.4.0 版本进行构建。
+## Requirements
 
-#### Scenario: 正常编译
-- **WHEN** 执行 `./gradlew :app:assembleDebug`
-- **THEN** 编译成功且无错误
+### Requirement: 工具链基线
 
-#### Scenario: 插件正常工作
-- **WHEN** 执行 `./gradlew :app:assembleDebug` 且使用了 auto-service 插件
-- **THEN** ServiceRegistry.java 正确生成并编译通过
+项目 SHALL 使用 AGP 8.13.0、Gradle Wrapper 8.13、JDK 17 和 Kotlin 2.1.0 构建。
 
-### Requirement: Gradle Wrapper 版本
-项目 SHALL 使用 Gradle 7.5 版本。
+#### Scenario: 发布级构建
 
-#### Scenario: Gradle 版本验证
-- **WHEN** 执行 `./gradlew --version`
-- **THEN** 显示 Gradle 版本为 7.5.x
+- **WHEN** 在 JDK 17 下执行四模块测试和 `:app:assembleDebug :app:assembleRelease`
+- **THEN** 所有任务成功
+- **AND** 不使用 AGP 7.x 或旧 Transform API
 
-### Requirement: JDK 版本要求
-构建环境 SHALL 使用 JDK 11 或更高版本。
+### Requirement: 组件版本一致
 
-**原因**: AGP 7.x 强制要求 JDK 11+，这是硬性要求。
+项目 SHALL 通过根 `VERSION=0.0.13` 对齐 annotation、registry、loader 和 plugin。
 
-#### Scenario: JDK 版本验证
-- **WHEN** 执行 `java -version`
-- **THEN** 显示版本号 >= 11
+#### Scenario: loader POM
 
-#### Scenario: buildSrc 编译环境
-- **WHEN** Gradle 编译 buildSrc 模块
-- **THEN** 使用 JDK 11+ 进行编译
+- **WHEN** 执行 `:auto-service-loader:generatePomFileForMavenPublication`
+- **THEN** POM 版本为 0.0.13
+- **AND** compile 依赖包含 `auto-service-annotation:0.0.13`
+- **AND** compile 依赖包含 `auto-service-registry:0.0.13`
 
-### Requirement: Android DSL 语法兼容性
-项目 SHALL 使用 AGP 7.x 兼容的 DSL 配置语法。
+#### Scenario: plugin POM
 
-#### Scenario: compileSdk 语法
-- **WHEN** 检查 app/build.gradle
-- **THEN** 使用 `compileSdk` 而非 `compileSdkVersion`
+- **WHEN** 执行 `:auto-service-plugin:generatePomFileForMavenPublication`
+- **THEN** artifactId 为 `auto-service-register`
+- **AND** 版本为 0.0.13
+- **AND** 不包含 annotation 运行时依赖
 
-**DSL 变更对照表**:
-| 旧语法 (AGP 4.x) | 新语法 (AGP 7.x) |
-| `compileSdkVersion 30` | `compileSdk 33` |
+### Requirement: 无凭据普通构建
 
-#### Scenario: targetSdk 语法
-- **WHEN** 检查 app/build.gradle
-- **THEN** 使用 `targetSdk` 而非 `targetSdkVersion`
+普通配置、测试和 assemble SHALL 在没有私服凭据时成功，且 SHALL NOT 配置需要认证的私服解析仓库。
 
-**DSL 变更对照表**:
-| 旧语法 (AGP 4.x) | 新语法 (AGP 7.x) |
-| `targetSdkVersion 30` | `targetSdk 33` |
+#### Scenario: 无凭据配置
 
-#### Scenario: minSdk 语法
-- **WHEN** 检查 app/build.gradle
-- **THEN** 使用 `minSdk` 而非 `minSdkVersion`
+- **GIVEN** 环境变量和 Gradle 属性均没有有效的 `ALIYUN_USERNAME`、`ALIYUN_PASSWORD`
+- **WHEN** 执行 `./gradlew projects`
+- **THEN** 配置成功
+- **AND** 日志不输出 Maven 用户名或密码
 
-**DSL 变更对照表**:
-| 旧语法 (AGP 4.x) | 新语法 (AGP 7.x) |
-| `minSdkVersion 17` | `minSdk 17` |
+#### Scenario: 无凭据应用构建
 
-#### Scenario: buildToolsVersion 移除
-- **WHEN** 检查 app/build.gradle
-- **THEN** 不包含 `buildToolsVersion` 配置
+- **GIVEN** 没有私服凭据，依赖已能从公开仓库或项目模块解析
+- **WHEN** 执行 `:app:assembleDebug`
+- **THEN** 构建成功
 
-**原因**: AGP 7.x 自动管理 buildTools 版本，无需手动配置。
+### Requirement: 发布凭据门禁
 
-### Requirement: Kotlin 版本兼容性
-项目 SHALL 使用与 AGP 7.4.0 兼容的 Kotlin 版本（1.8.x）。
+发布任务 SHALL 只从环境变量或用户级 Gradle 属性读取私服凭据，并 SHALL 在网络写入前验证两个值都存在。
 
-#### Scenario: Kotlin 编译成功
-- **WHEN** 执行 `./gradlew :app:assembleDebug`
-- **THEN** Kotlin 代码正确编译无错误
+#### Scenario: 缺少凭据
 
-#### Scenario: Kotlin 版本验证
-- **WHEN** 检查根目录 build.gradle
-- **THEN** `ext.kotlin_version = "1.8.10"`
+- **WHEN** 无有效凭据执行任一 `PublishToMavenRepository` 任务
+- **THEN** 任务失败
+- **AND** 错误为 `发布到私有 Maven 仓库需要 ALIYUN_USERNAME 和 ALIYUN_PASSWORD`
+- **AND** 发布仓库没有写入
 
-### Requirement: 插件模块 AGP 依赖版本
-buildSrc 模块 SHALL 依赖 AGP 7.4.0（因为项目使用 buildSrc 模式调试插件）。
+#### Scenario: 仓库安全
 
-#### Scenario: compileOnly 依赖版本正确
-- **WHEN** 检查 buildSrc/build.gradle
-- **THEN** compileOnly AGP 依赖版本为 7.4.0
+- **WHEN** 扫描受版本控制的项目属性文件
+- **THEN** 不存在两个凭据的赋值
+- **AND** 构建脚本不打印凭据值
 
-#### Scenario: implementation 依赖版本正确
-- **WHEN** 检查 buildSrc/build.gradle
-- **THEN** implementation AGP 依赖版本为 7.4.0
+### Requirement: 可缓存与可复现变换
 
-**变更对照表**:
-| 旧版本 | 新版本 |
-| `compileOnly("com.android.tools.build:gradle:1.3.1")` | `compileOnly("com.android.tools.build:gradle:7.4.0")` |
-| `implementation("com.android.tools.build:gradle:3.5.0")` | `implementation("com.android.tools.build:gradle:7.4.0")` |
+服务注册变换 SHALL 建模为 `@CacheableTask`，class 输入 SHALL 使用 `@CompileClasspath`，输出 JAR SHALL 可复现。
 
-### Requirement: 版本一致性
-项目 SHALL 确保所有模块使用一致的 AGP 版本。
+#### Scenario: 未修改输入
 
-#### Scenario: 根目录 build.gradle AGP 版本
-- **WHEN** 检查根目录 build.gradle 的 buildscript dependencies
-- **THEN** AGP 版本为 7.4.0
+- **WHEN** 连续两次执行同一变体注册任务
+- **THEN** 第二次结果为 `UP-TO-DATE`
 
-#### Scenario: buildSrc AGP 版本一致性
-- **WHEN** 检查 buildSrc/build.gradle 的 dependencies
-- **THEN** compileOnly 和 implementation 的 AGP 版本均为 7.4.0
+#### Scenario: 从缓存恢复
+
+- **GIVEN** 第一次执行已写入 build cache
+- **WHEN** 删除模块 build 输出后以相同输入再次执行
+- **THEN** 结果为 `FROM-CACHE`
+- **AND** 输出 SHA-256 与第一次一致
+
+### Requirement: buildSrc 与发布插件基线一致
+
+buildSrc 和 `auto-service-plugin` SHALL 使用 JDK 17、AGP 8.13.0 与相同插件实现入口。
+
+#### Scenario: 本地应用验收
+
+- **WHEN** app 直接应用 buildSrc 的 `AutoServiceRegisterPlugin`
+- **THEN** Debug 和 Release 均生成可加载的注册表
+- **AND** 行为与 TestKit 中发布插件一致

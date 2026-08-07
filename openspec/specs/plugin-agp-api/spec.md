@@ -1,139 +1,111 @@
-## ADDED Requirements
+# AGP 插件 API 规范
 
-### Requirement: AGP API 类路径兼容性
-auto-service-plugin SHALL 使用 AGP 7.x 中正确的类名和包名。
+## Requirements
 
-根据 AGP 源码分析，以下类路径在 AGP 7.x 中保持不变：
+### Requirement: 仅支持 Android Application
 
-| 类名 | AGP 4.x 路径 | AGP 7.x 路径 | 变化 |
-|------|-------------|-------------|------|
-| AppPlugin | `com.android.build.gradle.AppPlugin` | `com.android.build.gradle.AppPlugin` | **不变** |
-| AppExtension | `com.android.build.gradle.AppExtension` | `com.android.build.gradle.AppExtension` | **不变** |
+插件 SHALL 通过 typed AGP API 配置 Android Application，SHALL 拒绝 Android Library 和非 Android Application 项目。
 
-#### Scenario: AppPlugin 导入正确
-- **WHEN** 检查 AutoServiceRegisterPlugin.groovy 的 import 语句
-- **THEN** AppPlugin 导入路径为 `com.android.build.gradle.AppPlugin`
+#### Scenario: Application 模块
 
-#### Scenario: AppExtension 导入正确
-- **WHEN** 检查 AutoServiceRegisterPlugin.groovy 的 import 语句
-- **THEN** AppExtension 导入路径为 `com.android.build.gradle.AppExtension`
+- **WHEN** 项目应用 `com.android.application` 和 `auto-service`
+- **THEN** 插件为每个应用变体注册变换任务
 
-**说明**: AGP 7.x 中 AppExtension 是 ApplicationExtension 的别名，两者都可用。
+#### Scenario: 非 Application 模块
 
-### Requirement: applicationVariants API 兼容性
-插件 SHALL 正确使用 AGP 7.x 的 applicationVariants API。
+- **WHEN** Library 或普通 Gradle 项目应用 `auto-service`
+- **THEN** 配置失败并说明插件只能应用于 Android Application
 
-**API 兼容性分析**:
-- `applicationVariants` 在 AGP 7.x 中完全兼容
-- 返回类型仍为 `DomainObjectSet<ApplicationVariant>`
-- forEach 遍历方式不变
+### Requirement: typed Android Components 变体注册
 
-#### Scenario: 遍历构建变体
-- **WHEN** 插件执行 `android.applicationVariants.forEach { variant -> ... }`
-- **THEN** 能正确遍历所有构建变体（debug、release 等）
+插件 SHALL 使用 `ApplicationAndroidComponentsExtension.onVariants`，SHALL NOT 反射查找 `toTransform` 或回退到 `applicationVariants`。
 
-#### Scenario: 获取变体名称
-- **WHEN** 插件访问 `variant.name` 或 `variant.dirName`
-- **THEN** 返回正确的变体名称
+#### Scenario: Debug 和 Release
 
-### Requirement: javaCompileProvider API 兼容性
-插件 SHALL 正确获取编译 classpath 和输出目录。
+- **WHEN** Android 项目包含 debug、release 变体
+- **THEN** 分别注册 `androidAutoServiceRegisterDebug`、`androidAutoServiceRegisterRelease`
+- **AND** 两个任务接入各自变体的 class artifact 链
 
-**API 兼容性分析**:
-- `javaCompileProvider.get().classpath` 返回 `FileCollection`
-- `javaCompileProvider.get().destinationDir` 返回 `File`
-- 两者在 AGP 7.x 中均保持不变
+### Requirement: 全范围 class 发现
 
-#### Scenario: 获取 classpath
-- **WHEN** 插件调用 `variant.javaCompileProvider.get().classpath`
-- **THEN** 返回正确的编译类路径（包含所有依赖的 .class 和 .jar）
+插件 SHALL 使用 `ScopedArtifacts.Scope.ALL` 与 `ScopedArtifact.CLASSES` 聚合当前变体全部 class。
 
-#### Scenario: 获取 destinationDir
-- **WHEN** 插件调用 `variant.javaCompileProvider.get().destinationDir`
-- **THEN** 返回正确的编译输出目录（如 `build/intermediates/javac/debug/classes`）
+#### Scenario: 五类来源
 
-#### Scenario: 组合 classpath
-- **WHEN** 插件创建组合 classpath
-  ```groovy
-  project.files(android.bootClasspath, variant.javaCompileProvider.get().classpath, variant.javaCompileProvider.get().destinationDir)
-  ```
-- **THEN** 返回包含 Android SDK boot classpath、项目 classpath 和输出目录的 FileCollection
+- **GIVEN** 实现分别位于 Application、Android Library、Java Library、直接外部 AAR、桥接 AAR 的传递依赖
+- **WHEN** 构建应用变体
+- **THEN** 五个实现全部注册
+- **AND** priority 与 alias 行为一致
 
-### Requirement: bootClasspath API 兼容性
-插件 SHALL 正确获取 Android SDK boot classpath。
+#### Scenario: Library 声明实现
 
-**API 兼容性分析**:
-- `android.bootClasspath` 在 AGP 7.x 中保持不变
-- 返回类型仍为 `List<File>`
-- 包含 android.jar 等 SDK 类
+- **WHEN** Android Library 声明 `@AutoService` 实现但不应用插件
+- **THEN** 最终 Application 插件发现该实现
 
-#### Scenario: 获取 boot classpath
-- **WHEN** 插件调用 `android.bootClasspath`
-- **THEN** 返回正确的 Android SDK 类路径列表
+### Requirement: metadata catalog
 
-### Requirement: assembleProvider API 兼容性
-插件 SHALL 正确设置任务依赖关系。
+扫描 SHALL 先建立 class origin 和服务候选 catalog，再执行排序、排除、require 校验和代码生成。
 
-**API 兼容性分析**:
-- `variant.assembleProvider.get()` 返回 assemble Task
-- `dependsOn()` 方法在 AGP 7.x 中保持不变
+#### Scenario: 稳定排序
 
-#### Scenario: 任务依赖设置
-- **WHEN** 插件调用
-  ```groovy
-  variant.assembleProvider.get().dependsOn(registerTask, compileTask)
-  ```
-- **THEN** 任务依赖关系正确建立，assemble 依赖于 register 和 compile 任务
+- **WHEN** 同一接口存在多个候选
+- **THEN** 注册项按 priority 升序、实现类全限定名升序排列
 
-### Requirement: 插件编译通过
-buildSrc 模块 SHALL 在 AGP 7.4.0 下编译通过。
+#### Scenario: 排除候选
 
-#### Scenario: buildSrc 模块编译
-- **WHEN** Gradle Sync 或执行构建命令
-- **THEN** buildSrc 编译成功无错误
+- **WHEN** 候选命中类名/alias 正则
+- **THEN** 不写入运行时注册表
+- **AND** debuggable 诊断保留 `EXCLUDED` 状态与命中规则
 
-#### Scenario: Groovy 代码编译
-- **WHEN** 编译 AutoServiceRegisterPlugin.groovy 和 AutoServiceRegisterAction.groovy
-- **THEN** 无 import 错误、无 API 调用错误
+#### Scenario: required service
 
-### Requirement: Javassist 兼容性
-插件 SHALL 能正确解析 JDK 11+ 编译的 class 文件。
+- **GIVEN** `checkImplementation=true`
+- **WHEN** required 接口或 alias 在最终 catalog 中没有注册项
+- **THEN** 构建失败并区分完全缺失与全部被排除
 
-**当前版本**: Javassist 3.28.0-GA
+### Requirement: 重复类安全
 
-#### Scenario: 解析 class 文件
-- **WHEN** 插件使用 Javassist 解析编译后的 class 文件
-- **THEN** 能正确读取 class 信息和注解
+除生成保留类外，插件 SHALL 拒绝不同来源的同名普通 class。
 
-#### Scenario: 解析 jar 文件
-- **WHEN** 插件使用 Javassist 解析依赖 jar 文件
-- **THEN** 能正确读取所有 class 信息
+#### Scenario: 普通重复类
 
-### Requirement: 任务创建 API 兼容性
-插件 SHALL 使用兼容的任务创建方式。
+- **WHEN** 两个 JAR 均包含 `test.duplicate.Duplicate`
+- **THEN** 构建失败
+- **AND** 错误包含 class 名和两个 JAR 来源
 
-#### Scenario: 创建 registerTask
-- **WHEN** 插件调用
-  ```groovy
-  project.tasks.create("androidAutoServiceRegisterTask${variant.name.capitalize()}", AutoServiceRegisterTask.class)
-  ```
-- **THEN** 任务成功创建
+#### Scenario: 注册表存根
 
-#### Scenario: 创建 compileTask
-- **WHEN** 插件调用
-  ```groovy
-  project.tasks.create("compileAndroidAutoServiceRegistry${variant.name.capitalize()}", JavaCompile.class)
-  ```
-- **THEN** JavaCompile 任务成功创建
+- **WHEN** 输入中存在 `ServiceRegistry` 或 `ServiceRegistryDiagnostics` 存根
+- **THEN** writer 移除存根并只写入一份生成实现
 
-### Requirement: 代码生成功能正常
-插件 SHALL 能正确生成 ServiceRegistry.java。
+### Requirement: 变体感知诊断
 
-#### Scenario: 生成 ServiceRegistry.java
-- **WHEN** 插件执行注册任务
-- **THEN** 在 `build/intermediates/auto_service/{variant}/src/` 目录生成 ServiceRegistry.java
+插件 SHALL 使用 `variant.debuggable` 控制诊断内容，SHALL NOT 仅按变体名称判断。
 
-#### Scenario: ServiceRegistry 内容正确
-- **WHEN** 检查生成的 ServiceRegistry.java
-- **THEN** 包含正确的 register() 方法和 get() 方法
-- **AND** 包含所有 @AutoService 注解的服务实现类注册代码
+#### Scenario: debuggable 变体
+
+- **WHEN** `variant.debuggable=true`
+- **THEN** `ServiceLoader.diagnose()` 返回 AVAILABLE
+- **AND** 报告包含 REGISTERED、EXCLUDED、priority、alias、singleton 与排除规则
+
+#### Scenario: 非 debuggable 变体
+
+- **WHEN** `variant.debuggable=false`
+- **THEN** 正常服务加载保持完整
+- **AND** 诊断返回 `UNAVAILABLE_IN_NON_DEBUG_BUILD` 与空 entries
+- **AND** 诊断 class 常量池不包含候选类名、alias 或排除正则
+
+### Requirement: 确定性输出
+
+插件 SHALL 以排序 entry、固定 ZIP 元数据写出单一 JAR。
+
+#### Scenario: 相同输入
+
+- **WHEN** 相同 classpath 与配置重复执行
+- **THEN** 输出字节和 SHA-256 一致
+
+#### Scenario: AGP artifact 接续
+
+- **WHEN** 注册任务完成
+- **THEN** 输出 JAR 继续参与 dex、lint 和 APK/AAB 构建
+- **AND** 原始服务实现 class 不丢失

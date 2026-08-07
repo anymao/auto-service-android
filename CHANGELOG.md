@@ -1,5 +1,34 @@
 # 版本变更日志
 
+## v0.0.13 (2026-08-08)
+
+### 全范围服务发现
+
+- Application 插件迁移到 AGP 8.13 typed Android Components API 和 `ScopedArtifacts.Scope.ALL`。
+- 可发现 Application、项目模块、直接依赖以及传递 AAR/JAR 中的 `@AutoService` 实现。
+- 普通同名 class 来自不同输入时明确失败并报告两个来源；生成注册表存根仍由插件安全替换。
+- 注册任务支持 Gradle build cache，确定性 JAR 输出在相同输入下保持相同哈希。
+
+### 运行时诊断
+
+- 新增 `ServiceLoader.diagnose(clazz, alias)` 与 `ServiceLoader.diagnose<T>(alias)`。
+- 新增结构化 `ServiceDiagnosticReport`、候选状态、alias 统计与排除规则说明。
+- 仅 `debuggable=true` 变体携带完整候选元数据；非调试变体返回 unavailable 空报告，服务加载不受影响。
+- `@AutoService` retention 保持 `RUNTIME`，本版本未改为 BINARY。
+
+### 构建与发布
+
+- 最低验证工具链对齐为 AGP 8.13.0、Gradle 8.13、JDK 17、Kotlin 2.1.0。
+- 四个组件统一为 `0.0.13`；loader POM 传递 annotation 与 registry，插件不再运行时依赖 annotation。
+- 删除仓库内私服凭据和用户名日志。普通构建不需要私服凭据，发布任务在网络请求前校验环境变量或用户级 Gradle 属性。
+- 历史中出现过的旧凭据必须由仓库所有者在服务端吊销并轮换，这是发布 `0.0.13` 前的人工门禁。
+
+### 升级说明
+
+- 插件、loader、annotation 和 registry 必须一起升级到 `0.0.13`。
+- 插件只能应用到 Android Application；Library 模块继续声明实现但不应用插件。
+- 从 AGP 7.x 或旧 `toTransform`/`applicationVariants` 实现升级时，需要直接采用 AGP 8.13 工具链，不提供旧 API 兼容路径。
+
 ## v0.0.12 (2026-08-01)
 
 ### AGP 8.13 适配与组件发布
