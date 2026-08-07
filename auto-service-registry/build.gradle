@@ -24,7 +24,7 @@ compileTestKotlin {
 }
 
 dependencies {
-    compileOnly("com.anymore:auto-service-loader:$VERSION")
+    testImplementation 'junit:junit:4.13.2'
 }
 
 group 'com.anymore'

@@ -8,6 +8,8 @@ import java.util.function.Supplier
 object ServiceRegistry {
     @JvmStatic
     fun <S> get(clazz: Class<S>, alias: String): List<Supplier<S>> {
-        throw UnsupportedOperationException()
+        throw IllegalStateException(
+            "未生成服务注册表，请在 Android Application 模块中应用 auto-service 插件"
+        )
     }
 }

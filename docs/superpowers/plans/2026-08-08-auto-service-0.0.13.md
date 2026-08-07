@@ -203,12 +203,15 @@ In `settings.gradle`, always include `':auto-service-plugin'`; remove the condit
 
 In `auto-service-registry/build.gradle`, remove `compileOnly("com.anymore:auto-service-loader:$VERSION")` and add `testImplementation 'junit:junit:4.13.2'`.
 
-In `auto-service-loader/build.gradle`, replace remote dependencies with:
+In `auto-service-loader/build.gradle`, replace remote dependencies with this transitional graph:
 
 ```groovy
 api project(':auto-service-annotation')
-api project(':auto-service-registry')
+compileOnly project(':auto-service-registry')
+testImplementation project(':auto-service-registry')
 ```
+
+The registry dependency becomes `api` only after Task 5 installs full-scope reserved-class replacement; exposing the stub earlier creates a duplicate `ServiceRegistry` under `Scope.PROJECT`.
 
 Add to `ServiceLoader` companion object:
 
@@ -731,6 +734,7 @@ rtk git commit -m "feat: aggregate services from the full AGP class scope"
 - Modify: `auto-service-plugin/src/main/groovy/com/anymore/auto/gradle/AutoServiceRegisterTask.groovy`
 - Modify: `auto-service-plugin/src/test/groovy/com/anymore/auto/gradle/AutoServiceRegisterTaskTest.groovy`
 - Modify: `auto-service-plugin/src/test/groovy/com/anymore/auto/gradle/AutoServiceAgp8FunctionalTest.groovy`
+- Modify: `auto-service-loader/build.gradle`
 
 **Interfaces:**
 - Consumes: sorted input jars/directories and compiled generated classes directory.
@@ -803,8 +807,18 @@ Compute SHA-256 for output jars from two clean identical fixture copies and asse
 
 - [ ] **Step 7: 运行 writer、task 和功能测试**
 
+After reserved-class replacement is active, change loader dependencies to:
+
+```groovy
+api project(':auto-service-annotation')
+api project(':auto-service-registry')
+```
+
+Remove the transitional registry `compileOnly` and `testImplementation` declarations, then verify the registry stub is removed from the all-scope transform output before dexing.
+
 ```bash
 rtk ./gradlew :auto-service-plugin:test
+rtk ./gradlew :app:assembleDebug
 ```
 
 Expected: PASS including deterministic output and cache assertions。

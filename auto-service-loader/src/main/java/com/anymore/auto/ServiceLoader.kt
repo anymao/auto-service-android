@@ -13,6 +13,14 @@ class ServiceLoader<T> private constructor(
         fun <T> load(clazz: Class<T>, alias: String = "") = ServiceLoader(clazz, alias)
 
         inline fun <reified T> load(alias: String = "") = load(T::class.java, alias)
+
+        @JvmStatic
+        @JvmOverloads
+        fun diagnose(clazz: Class<*>, alias: String = ""): ServiceDiagnosticReport =
+            ServiceRegistryDiagnostics.get(clazz, alias)
+
+        inline fun <reified T> diagnose(alias: String = ""): ServiceDiagnosticReport =
+            diagnose(T::class.java, alias)
     }
 
     private var suppliers: List<Supplier<T>> = ServiceRegistry.get(clazz, alias)
