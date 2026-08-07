@@ -9,6 +9,8 @@ import org.gradle.api.provider.ListProperty
 import org.gradle.api.provider.MapProperty
 import org.gradle.api.provider.Property
 import org.gradle.api.tasks.Classpath
+import org.gradle.api.tasks.CacheableTask
+import org.gradle.api.tasks.CompileClasspath
 import org.gradle.api.tasks.Input
 import org.gradle.api.tasks.InputFiles
 import org.gradle.api.tasks.OutputFile
@@ -17,10 +19,7 @@ import org.gradle.api.tasks.PathSensitivity
 import org.gradle.api.tasks.TaskAction
 
 import javax.tools.ToolProvider
-import java.util.jar.JarEntry
-import java.util.jar.JarFile
-import java.util.jar.JarOutputStream
-
+@CacheableTask
 abstract class AutoServiceRegisterTask extends DefaultTask {
 
     @InputFiles @Classpath
@@ -29,7 +28,7 @@ abstract class AutoServiceRegisterTask extends DefaultTask {
     @InputFiles @PathSensitive(PathSensitivity.RELATIVE)
     abstract ListProperty<Directory> getInputDirectories()
 
-    @Classpath
+    @CompileClasspath
     abstract ConfigurableFileCollection getCompileClasspath()
 
     @Input
@@ -100,35 +99,11 @@ abstract class AutoServiceRegisterTask extends DefaultTask {
             if (result != 0) throw new GradleException("编译 auto-service 生成源码失败，退出码：${result}")
         }
         File output = outputJar.get().asFile
-        output.parentFile.mkdirs()
-        output.withOutputStream { stream ->
-            def entries = new HashSet<String>()
-            def jar = new JarOutputStream(stream)
-            try {
-                inputJars.get().each { AutoServiceRegisterTask.copyJar(it.asFile, jar, entries) }
-                inputDirectories.get().each { AutoServiceRegisterTask.copyDirectory(it.asFile, it.asFile, jar, entries) }
-                AutoServiceRegisterTask.copyDirectory(classesDirectory, classesDirectory, jar, entries)
-            } finally { jar.close() }
-        }
-    }
-
-    private static void copyJar(File file, JarOutputStream output, Set<String> entries) {
-        new JarFile(file).withCloseable { input ->
-            input.entries().each { entry ->
-                if (!entry.directory && entries.add(entry.name)) {
-                    output.putNextEntry(new JarEntry(entry.name))
-                    input.getInputStream(entry).withCloseable { it.transferTo(output) }
-                    output.closeEntry()
-                }
-            }
-        }
-    }
-
-    private static void copyDirectory(File root, File file, JarOutputStream output, Set<String> entries) {
-        if (!file.exists()) return
-        if (file.directory) { file.listFiles()?.each { copyDirectory(root, it, output, entries) }; return }
-        String name = root.toPath().relativize(file.toPath()).toString().replace(File.separatorChar, '/' as char)
-        if (entries.add(name)) { output.putNextEntry(new JarEntry(name)); file.withInputStream { it.transferTo(output) }; output.closeEntry() }
+        new DeterministicJarWriter().write(
+                inputJars.get().collect { it.asFile },
+                inputDirectories.get().collect { it.asFile },
+                classesDirectory,
+                output)
     }
 
     static Set<ExclusiveRule> toExclusiveRules(List<String> classNamePatterns, List<String> aliasPatterns) {

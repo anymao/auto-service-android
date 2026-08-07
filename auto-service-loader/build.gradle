@@ -26,8 +26,7 @@ compileTestKotlin {
 dependencies {
     implementation "org.jetbrains.kotlin:kotlin-stdlib:$kotlin_version"
     api project(':auto-service-annotation')
-    compileOnly project(':auto-service-registry')
-    testImplementation project(':auto-service-registry')
+    api project(':auto-service-registry')
     testImplementation 'junit:junit:4.13.2'
 }
 

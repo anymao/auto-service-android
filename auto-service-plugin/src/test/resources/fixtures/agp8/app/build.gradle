@@ -19,7 +19,7 @@ android {
 dependencies {
     compileOnly files('../libs/auto-service-annotation.jar')
     implementation files('../libs/auto-service-loader.jar')
-    compileOnly files('../libs/auto-service-registry.jar')
+    implementation files('../libs/auto-service-registry.jar')
     implementation project(':feature')
 }
 

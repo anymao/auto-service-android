@@ -2,6 +2,7 @@ package com.anymore.auto.gradle
 
 import com.anymore.auto.AutoService
 import org.gradle.testkit.runner.GradleRunner
+import org.gradle.testkit.runner.TaskOutcome
 import org.junit.After
 import org.junit.Before
 import org.junit.Test
@@ -162,6 +163,52 @@ public final class SecondaryServiceImpl implements Runnable {
         assert result.output.contains('auto-service 只能应用于 Android Application 模块'): result.output
     }
 
+    @Test
+    void transformIsUpToDateAndRestoredFromCacheWithStableHash() {
+        copyFixture('agp8')
+        new File(testProjectDir, 'settings.gradle') << '''
+
+buildCache {
+    local {
+        directory = file('local-build-cache')
+    }
+}
+'''
+        List<String> arguments = [
+                ':app:androidAutoServiceRegisterDebug',
+                '--build-cache',
+                '--stacktrace',
+                '--console=plain'
+        ]
+        def first = GradleRunner.create()
+                .withProjectDir(testProjectDir)
+                .withPluginClasspath()
+                .withArguments(arguments)
+                .build()
+        assert first.task(':app:androidAutoServiceRegisterDebug').outcome == TaskOutcome.SUCCESS
+        File output = new File(
+                testProjectDir,
+                'app/build/intermediates/classes/debug/ALL/androidAutoServiceRegisterDebug/classes.jar')
+        assert output.isFile(): "转换输出不存在：${output}"
+        String firstHash = sha256(output)
+
+        def second = GradleRunner.create()
+                .withProjectDir(testProjectDir)
+                .withPluginClasspath()
+                .withArguments(arguments)
+                .build()
+        assert second.task(':app:androidAutoServiceRegisterDebug').outcome == TaskOutcome.UP_TO_DATE
+
+        new File(testProjectDir, 'app/build').deleteDir()
+        def cached = GradleRunner.create()
+                .withProjectDir(testProjectDir)
+                .withPluginClasspath()
+                .withArguments(arguments)
+                .build()
+        assert cached.task(':app:androidAutoServiceRegisterDebug').outcome == TaskOutcome.FROM_CACHE
+        assert sha256(output) == firstHash
+    }
+
     private void copyFixture(String fixtureName) {
         URL fixture = getClass().getResource("/fixtures/${fixtureName}")
         assert fixture != null: "找不到测试夹具：${fixtureName}"
@@ -201,6 +248,13 @@ public final class SecondaryServiceImpl implements Runnable {
         File registryJar = new File(Class.forName('com.anymore.auto.ServiceDiagnosticReport').protectionDomain.codeSource.location.toURI())
         File fixtureRegistryJar = new File(testProjectDir, 'libs/auto-service-registry.jar')
         Files.copy(registryJar.toPath(), fixtureRegistryJar.toPath(), StandardCopyOption.REPLACE_EXISTING)
+    }
+
+    private static String sha256(File file) {
+        java.security.MessageDigest.getInstance('SHA-256')
+                .digest(file.bytes)
+                .encodeHex()
+                .toString()
     }
 
 }
