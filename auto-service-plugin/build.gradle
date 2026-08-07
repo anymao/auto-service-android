@@ -8,12 +8,14 @@ apply from:"../maven_publish.gradle"
 repositories {
     google()
     mavenCentral()
-    maven {
-        credentials {
-            username = "$ALIYUN_USERNAME"
-            password = "$ALIYUN_PASSWORD"
+    if (rootProject.ext.has_private_maven_credentials) {
+        maven {
+            credentials {
+                username = rootProject.ext.maven_username
+                password = rootProject.ext.maven_password
+            }
+            url = 'https://packages.aliyun.com/maven/repository/2202395-release-jr0puW/'
         }
-        url = 'https://packages.aliyun.com/maven/repository/2202395-release-jr0puW/'
     }
 }
 

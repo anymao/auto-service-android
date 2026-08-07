@@ -58,12 +58,18 @@ publishing {
 
             url = version.endsWith('SNAPSHOT') ? snapshotsRepoUrl : releasesRepoUrl
 
-            println("Maven Username: $maven_username")
-
             credentials {
-                username = "$maven_username"
-                password = "$maven_password"
+                username = rootProject.ext.maven_username
+                password = rootProject.ext.maven_password
             }
+        }
+    }
+}
+
+tasks.withType(org.gradle.api.publish.maven.tasks.PublishToMavenRepository).configureEach {
+    doFirst {
+        if (!rootProject.ext.maven_username || !rootProject.ext.maven_password) {
+            throw new GradleException('发布到私有 Maven 仓库需要 ALIYUN_USERNAME 和 ALIYUN_PASSWORD')
         }
     }
 }
