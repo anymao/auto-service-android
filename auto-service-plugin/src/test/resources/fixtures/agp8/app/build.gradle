@@ -20,6 +20,7 @@ dependencies {
     compileOnly files('../libs/auto-service-annotation.jar')
     implementation files('../libs/auto-service-loader.jar')
     compileOnly files('../libs/auto-service-registry.jar')
+    implementation project(':feature')
 }
 
 tasks.register('verifyAutoServiceOutputs') {
@@ -34,12 +35,15 @@ tasks.register('verifyAutoServiceOutputs') {
             def archive = new java.util.zip.ZipFile(output)
             try {
                 assert archive.getEntry('test/sample/ServiceImpl.class') != null: "${variant} 输出缺少服务实现类"
+                assert archive.getEntry('feature/FeatureTask.class') != null: "${variant} 输出缺少 feature 模块服务"
                 assert archive.getEntry('com/anymore/auto/ServiceRegistry.class') != null: "${variant} 输出缺少生成的服务注册表"
                 assert archive.getEntry('com/anymore/auto/ServiceRegistryDiagnostics.class') != null: "${variant} 输出缺少生成的诊断注册表"
             } finally {
                 archive.close()
             }
         }
+        assert tasks.named('androidAutoServiceRegisterDebug').get().diagnosticsEnabled.get()
+        assert !tasks.named('androidAutoServiceRegisterRelease').get().diagnosticsEnabled.get()
     }
 }
 
@@ -60,11 +64,13 @@ tasks.register('verifyAutoServiceRuntime') {
             def services = serviceLoaderClass.getMethod('load', Class, String).invoke(null, Runnable.class, '')
             def iterator = (services as Iterable).iterator()
             assert iterator.hasNext(): '生成的注册表未发现 Runnable 服务'
-            assert iterator.next() instanceof Runnable: '生成的服务不是 Runnable 实现'
-            assert !iterator.hasNext(): '夹具只声明了一个 Runnable 服务'
+            assert iterator.next().class.name == 'feature.FeatureTask': 'feature 服务应按优先级排在首位'
+            assert iterator.hasNext(): '生成的注册表未发现 App 模块 Runnable 服务'
+            assert iterator.next().class.name == 'test.sample.ServiceImpl': 'App 模块服务类型错误'
+            assert !iterator.hasNext(): '夹具只声明了两个 Runnable 服务'
             def report = serviceLoaderClass.getMethod('diagnose', Class, String).invoke(null, Runnable.class, '')
             assert report.availability.name() == 'AVAILABLE': 'Debug 诊断应可用'
-            assert report.registeredCount == 1: 'Debug 诊断应包含注册项'
+            assert report.registeredCount == 2: 'Debug 诊断应包含跨模块注册项'
         } finally {
             classLoader.close()
         }
@@ -86,10 +92,14 @@ tasks.register('verifyExcludedAutoServiceRuntime') {
         try {
             def serviceLoaderClass = classLoader.loadClass('com.anymore.auto.ServiceLoader')
             def services = serviceLoaderClass.getMethod('load', Class, String).invoke(null, Runnable.class, '')
-            assert !(services as Iterable).iterator().hasNext(): '排除规则后的注册表不应返回 Runnable 服务'
+            def iterator = (services as Iterable).iterator()
+            assert iterator.hasNext(): '排除 App 服务后应保留 feature 服务'
+            assert iterator.next().class.name == 'feature.FeatureTask': '排除后保留了错误实现'
+            assert !iterator.hasNext(): '被排除的 App 服务不应返回'
             def report = serviceLoaderClass.getMethod('diagnose', Class, String).invoke(null, Runnable.class, '')
-            assert report.entries.size() == 1: '诊断应保留排除候选'
-            assert report.entries[0].status.name() == 'EXCLUDED': '诊断候选状态应为 EXCLUDED'
+            assert report.entries.size() == 2: '诊断应保留跨模块候选和排除候选'
+            def excluded = report.entries.find { it.implementationClassName == 'test.sample.ServiceImpl' }
+            assert excluded.status.name() == 'EXCLUDED': '诊断候选状态应为 EXCLUDED'
         } finally {
             classLoader.close()
         }

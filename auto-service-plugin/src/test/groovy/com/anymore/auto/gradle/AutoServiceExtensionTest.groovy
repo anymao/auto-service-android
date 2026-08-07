@@ -8,6 +8,13 @@ import static org.junit.Assert.assertTrue
 class AutoServiceExtensionTest {
 
     @Test
+    void '生成源码默认兼容Java8'() {
+        def extension = new AutoServiceExtension(false, new LinkedHashMap<String, Set<String>>())
+
+        assertEquals('1.8', extension.sourceCompatibility)
+    }
+
+    @Test
     void '同一服务接口可累计多个必选别名'() {
         def extension = new AutoServiceExtension(false, new HashMap<String, Set<String>>())
 

@@ -2,6 +2,7 @@ apply plugin: 'java-library'
 apply plugin: 'groovy'
 apply plugin: 'java'
 apply plugin: 'java-gradle-plugin'
+apply plugin: 'kotlin'
 apply from:"../maven_publish.gradle"
 
 repositories {
@@ -17,8 +18,45 @@ repositories {
 }
 
 java {
-    sourceCompatibility = JavaVersion.VERSION_11
-    targetCompatibility = JavaVersion.VERSION_11
+    sourceCompatibility = JavaVersion.VERSION_17
+    targetCompatibility = JavaVersion.VERSION_17
+}
+
+tasks.withType(org.jetbrains.kotlin.gradle.tasks.KotlinCompile).configureEach {
+    compilerOptions.jvmTarget.set(org.jetbrains.kotlin.gradle.dsl.JvmTarget.JVM_17)
+}
+
+sourceSets {
+    main.kotlin.setSrcDirs([])
+    pluginEntry {
+        kotlin.srcDirs = ['src/main/kotlin']
+        compileClasspath += files(
+                layout.buildDirectory.dir('classes/groovy/main'),
+                layout.buildDirectory.dir('classes/java/main'),
+                layout.buildDirectory.dir('resources/main')) + configurations.compileClasspath
+        runtimeClasspath += output + compileClasspath
+    }
+}
+
+configurations {
+    pluginEntryImplementation.extendsFrom implementation
+    pluginEntryCompileOnly.extendsFrom compileOnly
+}
+
+tasks.named('compilePluginEntryKotlin') {
+    dependsOn tasks.named('compileGroovy')
+}
+
+tasks.named('classes') {
+    dependsOn tasks.named('pluginEntryClasses')
+}
+
+tasks.named('jar') {
+    from sourceSets.pluginEntry.output
+}
+
+tasks.named('pluginUnderTestMetadata') {
+    pluginClasspath.from(sourceSets.pluginEntry.output)
 }
 
 dependencies {
@@ -41,6 +79,7 @@ dependencies {
 
 test {
     useJUnit()
+    classpath += sourceSets.pluginEntry.output
 }
 
 gradlePlugin {

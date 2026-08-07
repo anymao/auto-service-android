@@ -7,7 +7,7 @@ import java.util.function.Function
  */
 class AutoServiceExtension {
     boolean checkImplementation = false
-    String sourceCompatibility = "1.7"
+    String sourceCompatibility = "1.8"
     private Map<String, Set<String>> requires = new LinkedHashMap<>()
     private Set<ExclusiveRule> exclusives = new LinkedHashSet<>()
     private int logLevel = Logger.INFO
@@ -73,7 +73,7 @@ class AutoServiceExtension {
         }
     }
 
-    def getLogLevel() {
+    int getLogLevel() {
         return logLevel
     }
 

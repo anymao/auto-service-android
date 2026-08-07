@@ -131,6 +131,37 @@ public final class SecondaryServiceImpl implements Runnable {
         assert result.output.contains('androidAutoServiceRegisterDebug'): result.output
     }
 
+    @Test
+    void pluginRejectsAndroidLibraryModule() {
+        copyFixture('agp8')
+        File buildFile = new File(testProjectDir, 'app/build.gradle')
+        buildFile.text = buildFile.text
+                .replace("id 'com.android.application'", "id 'com.android.library'")
+                .replace("        applicationId 'test.sample'\n", '')
+
+        def result = GradleRunner.create()
+                .withProjectDir(testProjectDir)
+                .withPluginClasspath()
+                .withArguments(':app:tasks', '--stacktrace', '--console=plain')
+                .buildAndFail()
+
+        assert result.output.contains('auto-service 只能应用于 Android Application 模块'): result.output
+    }
+
+    @Test
+    void pluginRejectsProjectWithoutAndroidApplicationPlugin() {
+        new File(testProjectDir, 'settings.gradle').text = "rootProject.name = 'plain-project'\n"
+        new File(testProjectDir, 'build.gradle').text = "plugins { id 'auto-service' }\n"
+
+        def result = GradleRunner.create()
+                .withProjectDir(testProjectDir)
+                .withPluginClasspath()
+                .withArguments('tasks', '--stacktrace', '--console=plain')
+                .buildAndFail()
+
+        assert result.output.contains('auto-service 只能应用于 Android Application 模块'): result.output
+    }
+
     private void copyFixture(String fixtureName) {
         URL fixture = getClass().getResource("/fixtures/${fixtureName}")
         assert fixture != null: "找不到测试夹具：${fixtureName}"

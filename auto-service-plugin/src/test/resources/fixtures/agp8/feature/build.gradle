@@ -1,0 +1,16 @@
+plugins {
+    id 'com.android.library' version '8.13.0'
+}
+
+android {
+    namespace 'test.feature'
+    compileSdk 35
+
+    defaultConfig {
+        minSdk 23
+    }
+}
+
+dependencies {
+    compileOnly files('../libs/auto-service-annotation.jar')
+}
