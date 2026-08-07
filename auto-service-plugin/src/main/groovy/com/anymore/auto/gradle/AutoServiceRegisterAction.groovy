@@ -1,24 +1,14 @@
 package com.anymore.auto.gradle
 
-import com.anymore.auto.AutoService
 import com.squareup.javapoet.*
-import javassist.ClassPool
-import javassist.CtClass
-import javassist.Loader
-import javassist.bytecode.AnnotationsAttribute
-import javassist.bytecode.ClassFile
-import javassist.bytecode.annotation.*
 import org.gradle.api.GradleException
 import org.gradle.api.file.FileCollection
 import org.gradle.api.tasks.TaskAction
-import org.jetbrains.annotations.NotNull
-import org.jetbrains.annotations.Nullable
 
 import javax.lang.model.element.Modifier
 import java.util.concurrent.atomic.AtomicLong
 import java.util.function.Function
 import java.util.function.Supplier
-import java.util.jar.JarFile
 
 /**
  * Created by anymore on 2022/4/3.
@@ -26,7 +16,6 @@ import java.util.jar.JarFile
 class AutoServiceRegisterAction {
     final FileCollection classpath
     final File targetDir
-    private final ClassPool classPool
     private final Map<String, Set<String>> requiredServices
     private final Set<ExclusiveRule> exclusiveRules
 
@@ -36,124 +25,10 @@ class AutoServiceRegisterAction {
         this.targetDir = targetDir
         this.requiredServices = requiredServices
         this.exclusiveRules = exclusiveRules
-        classPool = new ClassPool(true) {
-            @Override
-            ClassLoader getClassLoader() {
-                return new Loader(this)
-            }
-        }
     }
 
-    private List<CtClass> load() {
-        final result = new LinkedList<CtClass>()
-        classpath.each { file ->
-            if (file.exists()) {
-                classPool.appendClassPath(file.getAbsolutePath())
-            }
-        }
-        classpath.each {
-            load(result, classPool, it)
-        }
-        return result
-    }
-
-    private void load(List<CtClass> result, ClassPool pool, File file) {
-        if (file.isDirectory()) {
-            file.listFiles().each {
-                load(result, pool, it)
-            }
-        } else {
-            if (file.name.endsWith(".class")) {
-                loadClass(result, pool, file)
-            } else if (file.name.endsWith(".jar")) {
-                loadJar(result, pool, file)
-            }
-        }
-    }
-
-    private static void loadClass(List<CtClass> result, ClassPool pool, File file) {
-        new FileInputStream(file).withCloseable {
-            result.add(pool.makeClass(it))
-        }
-    }
-
-    private static void loadJar(List<CtClass> result, ClassPool pool, File file) {
-        final jarFile = new JarFile(file)
-        jarFile.entries().asIterator().each {
-            if (it.name.endsWith(".class")) {
-                jarFile.getInputStream(it).withCloseable {
-                    result.add(pool.makeClass(it))
-                }
-            }
-        }
-    }
-
-    private static Map<String, Collection<Element>> loadAutoServices(List<CtClass> classes, Set<ExclusiveRule> exclusiveRules) {
-        final result = new HashMap<String, Queue<Element>>()
-        classes.each { ctClass ->
-            if (ctClass.hasAnnotation(AutoService.class)) {
-                final autoServiceAnnotation = getAnnotation(ctClass.classFile, AutoService.class)
-                if (autoServiceAnnotation == null) {
-                    return
-                }
-                final serviceClasses = (ArrayMemberValue) autoServiceAnnotation.getMemberValue("value")
-                final pm = ((IntegerMemberValue) autoServiceAnnotation.getMemberValue("priority"))
-                int p
-                if (pm != null) {
-                    p = pm.value
-                } else {
-                    p = 0
-                }
-                final priority = p
-                final am = (StringMemberValue) autoServiceAnnotation.getMemberValue("alias")
-                String a
-                if (am != null) {
-                    a = am.value
-                } else {
-                    a = ""
-                }
-                final alias = a
-                final sm = (BooleanMemberValue) autoServiceAnnotation.getMemberValue("singleton")
-                boolean single = false
-                if (sm != null) {
-                    single = sm.value
-                }
-                final singleton = single
-                final element = Element.create(ctClass.name, priority, alias, singleton)
-                final rule = matchExcludeRule(element, exclusiveRules)
-                if (rule != null) {
-                    Logger.d("${element} matchExcludeRule:${rule},remove it.")
-                    return
-                }
-                serviceClasses.value.each { mv ->
-                    final cm = (ClassMemberValue) mv
-                    result.computeIfAbsent(cm.value, new Function<String, Queue<Element>>() {
-                        @Override
-                        Queue<Element> apply(String s) {
-                            return new PriorityQueue<Element>()
-                        }
-                    }).offer(element)
-                }
-            }
-        }
-        return result
-    }
-
-    private static Annotation getAnnotation(ClassFile classFile, Class<?> clazz) {
-        final visibleAttr = (AnnotationsAttribute) classFile.getAttribute(AnnotationsAttribute.visibleTag)
-        if (visibleAttr != null) {
-            final autoService = visibleAttr.getAnnotation(clazz.name)
-            if (autoService != null) return autoService
-        }
-        final invisibleAttr = (AnnotationsAttribute) classFile.getAttribute(AnnotationsAttribute.invisibleTag)
-        if (invisibleAttr != null) {
-            return invisibleAttr.getAnnotation(clazz.name)
-        }
-        return null
-    }
-
-    private void makeServiceRegistryFile(Map<String, Queue<Element>> elements) {
-        if (targetDir.exists()) {
+    private void makeServiceRegistryFile(Map<String, List<ServiceCandidate>> elements) {
+        if (!targetDir.exists()) {
             targetDir.mkdirs()
         }
         final file = createServiceRegistry(elements)
@@ -162,7 +37,7 @@ class AutoServiceRegisterAction {
         Logger.d(" ${file.getAbsolutePath()}")
     }
 
-    private static JavaFile createServiceRegistry(Map<String, Queue<Element>> elements) {
+    private static JavaFile createServiceRegistry(Map<String, List<ServiceCandidate>> elements) {
         final pkg = "com.anymore.auto"
         //Class<?>
         final WildcardTypeName anyType = WildcardTypeName.subtypeOf(Object.class)
@@ -269,10 +144,8 @@ class AutoServiceRegisterAction {
             final supperCounter = new AtomicLong(0L)
             elements.each { entry ->
                 final serviceType = ClassName.bestGuess(entry.key)
-                final queue = entry.value
-                while (!queue.isEmpty()) {
-                    final element = queue.poll()
-                    final implType = ClassName.bestGuess(element.name)
+                entry.value.each { ServiceCandidate element ->
+                    final implType = ClassName.bestGuess(element.implementationClassName)
                     if (!element.singleton) {
                         final supplier = TypeSpec.anonymousClassBuilder("")
                                 .addSuperinterface(ParameterizedTypeName.get(ClassName.get(Supplier), implType))
@@ -324,31 +197,19 @@ class AutoServiceRegisterAction {
 
 
     /**
-     * 是否命中排除规则
-     * @param element
-     * @param rules
-     * @return
-     */
-    @Nullable
-    private static ExclusiveRule matchExcludeRule(Element element, Set<ExclusiveRule> rules) {
-        if (rules.empty) {
-            return null
-        }
-        return rules.find { element.name.matches(it.className) && element.alias.matches(it.alias) }
-    }
-
-    /**
      * 编译期预检查
      * @param services build.gradle中通过autoService 配置的必须实现的接口
      * @param implementedServices 实际项目已经实现的接口
      * @return 检查结果
      */
-    private static Collection<Tuple2<String, String>> preCheckRequiredServices(Map<String, Set<String>> services, Map<String, Collection<Element>> implementedServices) {
+    private static Collection<Tuple2<String, String>> preCheckRequiredServices(
+            Map<String, Set<String>> services,
+            Map<String, List<ServiceCandidate>> implementedServices) {
         final result = new LinkedList<Tuple2<String, String>>()
         services.each { requiredService ->
             final service = requiredService.key
-            final serviceAliases = implementedServices.get(service)
-            if (serviceAliases == null || serviceAliases.isEmpty()) {
+            final serviceCandidates = implementedServices.get(service)
+            if (serviceCandidates == null || serviceCandidates.isEmpty()) {
                 requiredService.value.each {
                     if (TextUtils.isEmpty(it) && requiredService.value.size() == 1) {
                         result.add(new Tuple2<String, String>(service, ""))
@@ -357,6 +218,7 @@ class AutoServiceRegisterAction {
                     }
                 }
             } else {
+                final serviceAliases = serviceCandidates.collect { it.alias }.toSet()
                 requiredService.value.each {
                     if (!TextUtils.isEmpty(it) && !serviceAliases.contains(it)) {
                         result.add(new Tuple2<String, String>(service, it))
@@ -371,7 +233,8 @@ class AutoServiceRegisterAction {
     @TaskAction
     boolean execute() throws Exception {
         final startTime = System.currentTimeMillis()
-        final result = loadAutoServices(load(), exclusiveRules)
+        final catalog = new ClassMetadataScanner(exclusiveRules).scan(classpath.files)
+        final result = catalog.registeredByService()
         if (!requiredServices.isEmpty()) {
             final checkResult = preCheckRequiredServices(requiredServices, result)
             if (!checkResult.isEmpty()) {
@@ -391,43 +254,5 @@ class AutoServiceRegisterAction {
         makeServiceRegistryFile(result)
         Logger.i("used time:${(System.currentTimeMillis() - startTime) / 1000}s")
         return true
-    }
-
-    static class Element implements Comparable<Element> {
-        final String name
-        final int priority
-        final String alias
-        final boolean singleton
-
-        Element(String name, int priority, String alias, boolean singleton) {
-            this.name = name
-            this.priority = priority
-            this.alias = alias
-            this.singleton = singleton
-        }
-
-        static Element create(String name, int priority, String alias, boolean singleton) {
-            return new Element(name, priority, alias, singleton)
-        }
-
-        @Override
-        int compareTo(@NotNull Element o) {
-            if (priority == o.priority) {
-                return name <=> o.name
-            } else {
-                return priority <=> o.priority
-            }
-        }
-
-
-        @Override
-        String toString() {
-            return "Element{" +
-                    "name='" + name + '\'' +
-                    ", priority=" + priority +
-                    ", alias='" + alias + '\'' +
-                    ", singleton=" + singleton +
-                    '}'
-        }
     }
 }

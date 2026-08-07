@@ -25,7 +25,6 @@ dependencies {
     compileOnly(gradleApi())
     compileOnly(localGroovy())
     compileOnly("com.android.tools.build:gradle:8.13.0")
-    implementation("com.anymore:auto-service-annotation:$VERSION")
     implementation('com.squareup:javapoet:1.13.0')
     implementation("com.android.tools.build:gradle:8.13.0")
     implementation("commons-io:commons-io:2.8.0")
@@ -34,8 +33,10 @@ dependencies {
     implementation("org.jetbrains:annotations:13.0")
     testImplementation gradleTestKit()
     testImplementation localGroovy()
+    testImplementation project(':auto-service-annotation')
     testImplementation 'junit:junit:4.13.2'
     testRuntimeOnly project(':auto-service-loader')
+    testRuntimeOnly project(':auto-service-registry')
 }
 
 test {

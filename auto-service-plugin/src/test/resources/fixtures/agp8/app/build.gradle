@@ -19,6 +19,7 @@ android {
 dependencies {
     compileOnly files('../libs/auto-service-annotation.jar')
     implementation files('../libs/auto-service-loader.jar')
+    compileOnly files('../libs/auto-service-registry.jar')
 }
 
 tasks.register('verifyAutoServiceOutputs') {
@@ -48,9 +49,10 @@ tasks.register('verifyAutoServiceRuntime') {
         def transformTask = tasks.named('androidAutoServiceRegisterDebug').get()
         def output = transformTask.outputJar.get().asFile
         def loaderJar = file('../libs/auto-service-loader.jar')
+        def registryJar = file('../libs/auto-service-registry.jar')
         def kotlinRuntime = Class.forName('kotlin.Unit').protectionDomain.codeSource.location
         def classLoader = new java.net.URLClassLoader(
-                [output.toURI().toURL(), loaderJar.toURI().toURL(), kotlinRuntime] as URL[],
+                [output.toURI().toURL(), loaderJar.toURI().toURL(), registryJar.toURI().toURL(), kotlinRuntime] as URL[],
                 ClassLoader.getPlatformClassLoader())
         try {
             def serviceLoaderClass = classLoader.loadClass('com.anymore.auto.ServiceLoader')
@@ -72,9 +74,10 @@ tasks.register('verifyExcludedAutoServiceRuntime') {
         def transformTask = tasks.named('androidAutoServiceRegisterDebug').get()
         def output = transformTask.outputJar.get().asFile
         def loaderJar = file('../libs/auto-service-loader.jar')
+        def registryJar = file('../libs/auto-service-registry.jar')
         def kotlinRuntime = Class.forName('kotlin.Unit').protectionDomain.codeSource.location
         def classLoader = new java.net.URLClassLoader(
-                [output.toURI().toURL(), loaderJar.toURI().toURL(), kotlinRuntime] as URL[],
+                [output.toURI().toURL(), loaderJar.toURI().toURL(), registryJar.toURI().toURL(), kotlinRuntime] as URL[],
                 ClassLoader.getPlatformClassLoader())
         try {
             def serviceLoaderClass = classLoader.loadClass('com.anymore.auto.ServiceLoader')
@@ -93,9 +96,10 @@ tasks.register('verifyAliasedAutoServiceRuntime') {
         def transformTask = tasks.named('androidAutoServiceRegisterDebug').get()
         def output = transformTask.outputJar.get().asFile
         def loaderJar = file('../libs/auto-service-loader.jar')
+        def registryJar = file('../libs/auto-service-registry.jar')
         def kotlinRuntime = Class.forName('kotlin.Unit').protectionDomain.codeSource.location
         def classLoader = new java.net.URLClassLoader(
-                [output.toURI().toURL(), loaderJar.toURI().toURL(), kotlinRuntime] as URL[],
+                [output.toURI().toURL(), loaderJar.toURI().toURL(), registryJar.toURI().toURL(), kotlinRuntime] as URL[],
                 ClassLoader.getPlatformClassLoader())
         try {
             def serviceLoaderClass = classLoader.loadClass('com.anymore.auto.ServiceLoader')

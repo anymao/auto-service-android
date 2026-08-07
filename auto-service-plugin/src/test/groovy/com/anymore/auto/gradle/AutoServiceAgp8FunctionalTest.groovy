@@ -166,6 +166,10 @@ public final class SecondaryServiceImpl implements Runnable {
         File loaderJar = new File(Class.forName('com.anymore.auto.ServiceSupplier').protectionDomain.codeSource.location.toURI())
         File fixtureLoaderJar = new File(testProjectDir, 'libs/auto-service-loader.jar')
         Files.copy(loaderJar.toPath(), fixtureLoaderJar.toPath(), StandardCopyOption.REPLACE_EXISTING)
+
+        File registryJar = new File(Class.forName('com.anymore.auto.ServiceDiagnosticReport').protectionDomain.codeSource.location.toURI())
+        File fixtureRegistryJar = new File(testProjectDir, 'libs/auto-service-registry.jar')
+        Files.copy(registryJar.toPath(), fixtureRegistryJar.toPath(), StandardCopyOption.REPLACE_EXISTING)
     }
 
 }

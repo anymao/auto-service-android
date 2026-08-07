@@ -34,15 +34,27 @@ class AutoServiceExtensionTest {
     @Test
     void '服务元素按优先级和类名稳定排序'() {
         def elements = [
-                new AutoServiceRegisterAction.Element('example.Zebra', 0, '', false),
-                new AutoServiceRegisterAction.Element('example.Alpha', 0, '', false),
-                new AutoServiceRegisterAction.Element('example.Later', 5, '', false),
-                new AutoServiceRegisterAction.Element('example.First', -1, '', false)
+                candidate('example.Zebra', 0),
+                candidate('example.Alpha', 0),
+                candidate('example.Later', 5),
+                candidate('example.First', -1)
         ]
 
         assertEquals(
                 ['example.First', 'example.Alpha', 'example.Zebra', 'example.Later'],
-                elements.sort().collect { it.name })
+                elements.sort().collect { it.implementationClassName })
         assertTrue(elements[0].priority < elements[1].priority)
+    }
+
+    private static ServiceCandidate candidate(String implementationClassName, int priority) {
+        new ServiceCandidate(
+                'example.Service',
+                implementationClassName,
+                priority,
+                '',
+                false,
+                ServiceCandidateStatus.REGISTERED,
+                null,
+                null)
     }
 }
