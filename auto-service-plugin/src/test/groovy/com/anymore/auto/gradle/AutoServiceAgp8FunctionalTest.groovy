@@ -9,6 +9,9 @@ import org.junit.Test
 
 import java.nio.file.Files
 import java.nio.file.StandardCopyOption
+import java.util.jar.JarEntry
+import java.util.jar.JarOutputStream
+import javax.tools.ToolProvider
 
 class AutoServiceAgp8FunctionalTest {
 
@@ -209,6 +212,72 @@ buildCache {
         assert sha256(output) == firstHash
     }
 
+    @Test
+    void discoversServicesFromProjectsAndDirectAndTransitiveAars() {
+        copyFixture('agp8')
+
+        def publishResult = GradleRunner.create()
+                .withProjectDir(testProjectDir)
+                .withPluginClasspath()
+                .withArguments(
+                        ':external-producer:publish',
+                        ':external-bridge:publish',
+                        '--stacktrace',
+                        '--console=plain')
+                .build()
+        File bridgePom = new File(
+                testProjectDir,
+                'test-repo/test/external/external-bridge/1.0/external-bridge-1.0.pom')
+        assert bridgePom.isFile(): publishResult.output
+        assert bridgePom.text.contains('external-producer'): '桥接 AAR 的 POM 未保留传递依赖'
+
+        new File(testProjectDir, 'app/build.gradle') << '''
+
+dependencies {
+    implementation project(':java-services')
+    implementation 'test.external:external-bridge:1.0'
+}
+
+autoService {
+    exclude('test\\\\.external\\\\.ExcludedExternalTask', 'excluded')
+}
+'''
+
+        def result = GradleRunner.create()
+                .withProjectDir(testProjectDir)
+                .withPluginClasspath()
+                .withArguments(':app:verifyAllScopeRuntime', '--stacktrace', '--console=plain')
+                .build()
+
+        assert result.output.contains('androidAutoServiceRegisterDebug'): result.output
+        assert result.output.contains('androidAutoServiceRegisterRelease'): result.output
+    }
+
+    @Test
+    void rejectsOrdinaryDuplicateClassesWithBothOrigins() {
+        copyFixture('agp8')
+        File firstJar = new File(testProjectDir, 'libs/duplicate-first.jar')
+        File secondJar = new File(testProjectDir, 'libs/duplicate-second.jar')
+        createDuplicateClassJar(firstJar, 'first')
+        createDuplicateClassJar(secondJar, 'second')
+        new File(testProjectDir, 'app/build.gradle') << '''
+
+dependencies {
+    implementation files('../libs/duplicate-first.jar', '../libs/duplicate-second.jar')
+}
+'''
+
+        def result = GradleRunner.create()
+                .withProjectDir(testProjectDir)
+                .withPluginClasspath()
+                .withArguments(':app:assembleDebug', '--stacktrace', '--console=plain')
+                .buildAndFail()
+
+        assert result.output.contains('test.duplicate.Duplicate'): result.output
+        assert result.output.contains('duplicate-first.jar'): result.output
+        assert result.output.contains('duplicate-second.jar'): result.output
+    }
+
     private void copyFixture(String fixtureName) {
         URL fixture = getClass().getResource("/fixtures/${fixtureName}")
         assert fixture != null: "找不到测试夹具：${fixtureName}"
@@ -255,6 +324,35 @@ buildCache {
                 .digest(file.bytes)
                 .encodeHex()
                 .toString()
+    }
+
+    private static void createDuplicateClassJar(File jarFile, String marker) {
+        File workDirectory = new File(jarFile.parentFile, "${jarFile.name}.work")
+        File source = new File(workDirectory, 'src/test/duplicate/Duplicate.java')
+        File classes = new File(workDirectory, 'classes')
+        source.parentFile.mkdirs()
+        classes.mkdirs()
+        source.text = """
+package test.duplicate;
+
+public final class Duplicate {
+    public static final String MARKER = "${marker}";
+}
+"""
+        def compiler = ToolProvider.systemJavaCompiler
+        assert compiler != null: '运行功能测试需要完整 JDK'
+        int exitCode = compiler.run(null, null, null, '-d', classes.absolutePath, source.absolutePath)
+        assert exitCode == 0: "编译重复类测试输入失败：${jarFile.name}"
+
+        File classFile = new File(classes, 'test/duplicate/Duplicate.class')
+        jarFile.parentFile.mkdirs()
+        jarFile.withOutputStream { output ->
+            new JarOutputStream(output).withCloseable { archive ->
+                archive.putNextEntry(new JarEntry('test/duplicate/Duplicate.class'))
+                archive.write(classFile.bytes)
+                archive.closeEntry()
+            }
+        }
     }
 
 }

@@ -64,9 +64,9 @@ tasks.register('verifyAutoServiceRuntime') {
             def services = serviceLoaderClass.getMethod('load', Class, String).invoke(null, Runnable.class, '')
             def iterator = (services as Iterable).iterator()
             assert iterator.hasNext(): '生成的注册表未发现 Runnable 服务'
-            assert iterator.next().class.name == 'feature.FeatureTask': 'feature 服务应按优先级排在首位'
-            assert iterator.hasNext(): '生成的注册表未发现 App 模块 Runnable 服务'
-            assert iterator.next().class.name == 'test.sample.ServiceImpl': 'App 模块服务类型错误'
+            assert iterator.next().class.name == 'test.sample.ServiceImpl': 'App 服务应按优先级排在首位'
+            assert iterator.hasNext(): '生成的注册表未发现 feature 模块 Runnable 服务'
+            assert iterator.next().class.name == 'feature.FeatureTask': 'feature 模块服务类型错误'
             assert !iterator.hasNext(): '夹具只声明了两个 Runnable 服务'
             def report = serviceLoaderClass.getMethod('diagnose', Class, String).invoke(null, Runnable.class, '')
             assert report.availability.name() == 'AVAILABLE': 'Debug 诊断应可用'
@@ -127,6 +127,116 @@ tasks.register('verifyAliasedAutoServiceRuntime') {
             assert !iterator.hasNext(): '别名过滤后应只保留一个服务实现'
         } finally {
             classLoader.close()
+        }
+    }
+}
+
+tasks.register('verifyAllScopeRuntime') {
+    dependsOn 'assembleDebug', 'assembleRelease'
+
+    doLast {
+        def expectedClasses = [
+                'test.sample.ServiceImpl',
+                'feature.FeatureTask',
+                'test.java.JavaModuleTask',
+                'test.external.ExternalTask',
+                'test.external.BridgeTask'
+        ]
+        def expectedAliases = ['app', 'feature', 'java', 'external', 'bridge']
+        def loaderJar = file('../libs/auto-service-loader.jar')
+        def registryJar = file('../libs/auto-service-registry.jar')
+        def kotlinRuntime = Class.forName('kotlin.Unit').protectionDomain.codeSource.location
+
+        ['Debug', 'Release'].each { variant ->
+            def output = tasks.named("androidAutoServiceRegister${variant}").get().outputJar.get().asFile
+            def classLoader = new java.net.URLClassLoader(
+                    [output.toURI().toURL(), loaderJar.toURI().toURL(), registryJar.toURI().toURL(), kotlinRuntime] as URL[],
+                    ClassLoader.getPlatformClassLoader())
+            try {
+                def serviceLoaderClass = classLoader.loadClass('com.anymore.auto.ServiceLoader')
+                def services = serviceLoaderClass.getMethod('load', Class, String)
+                        .invoke(null, Runnable.class, '')
+                assert (services as Iterable).collect { it.class.name } == expectedClasses: "${variant} 服务顺序错误"
+                expectedAliases.eachWithIndex { String alias, int index ->
+                    def matching = serviceLoaderClass.getMethod('load', Class, String)
+                            .invoke(null, Runnable.class, alias)
+                    assert (matching as Iterable).collect { it.class.name } == [expectedClasses[index]]: "${variant} alias=${alias} 匹配错误"
+                }
+
+                def report = serviceLoaderClass.getMethod('diagnose', Class, String)
+                        .invoke(null, Runnable.class, '')
+                if (variant == 'Debug') {
+                    assert report.availability.toString() == 'AVAILABLE'
+                    assert report.registeredCount == 5
+                    assert report.availableAliases == expectedAliases as Set
+                    def excluded = report.entries.find {
+                        it.implementationClassName == 'test.external.ExcludedExternalTask'
+                    }
+                    assert excluded != null: 'Debug 诊断缺少被排除的外部 AAR 实现'
+                    assert excluded.status.toString() == 'EXCLUDED'
+                } else {
+                    assert report.availability.toString() == 'UNAVAILABLE_IN_NON_DEBUG_BUILD'
+                    assert report.entries.empty
+                    def archive = new java.util.zip.ZipFile(output)
+                    try {
+                        def entry = archive.getEntry('com/anymore/auto/ServiceRegistryDiagnostics.class')
+                        def constants = [] as Set
+                        def input = new java.io.DataInputStream(archive.getInputStream(entry))
+                        assert input.readInt() == -889275714
+                        input.readUnsignedShort()
+                        input.readUnsignedShort()
+                        int constantPoolCount = input.readUnsignedShort()
+                        for (int index = 1; index < constantPoolCount; index++) {
+                            int tag = input.readUnsignedByte()
+                            switch (tag) {
+                                case 1:
+                                    constants.add(input.readUTF())
+                                    break
+                                case 3:
+                                case 4:
+                                    input.skipBytes(4)
+                                    break
+                                case 5:
+                                case 6:
+                                    input.skipBytes(8)
+                                    index++
+                                    break
+                                case 7:
+                                case 8:
+                                case 16:
+                                case 19:
+                                case 20:
+                                    input.skipBytes(2)
+                                    break
+                                case 9:
+                                case 10:
+                                case 11:
+                                case 12:
+                                case 17:
+                                case 18:
+                                    input.skipBytes(4)
+                                    break
+                                case 15:
+                                    input.skipBytes(3)
+                                    break
+                                default:
+                                    assert false: "未知的 class 常量池标签：${tag}"
+                            }
+                        }
+                        input.close()
+                        (expectedClasses + expectedAliases + [
+                                'test.external.ExcludedExternalTask',
+                                'test\\.external\\.ExcludedExternalTask'
+                        ]).each { forbidden ->
+                            assert !constants.contains(forbidden): "Release 诊断泄露候选元数据：${forbidden}"
+                        }
+                    } finally {
+                        archive.close()
+                    }
+                }
+            } finally {
+                classLoader.close()
+            }
         }
     }
 }

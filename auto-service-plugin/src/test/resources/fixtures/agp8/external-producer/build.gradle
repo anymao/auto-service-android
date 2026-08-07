@@ -1,0 +1,30 @@
+plugins {
+    id 'com.android.library' version '8.13.0'
+    id 'maven-publish'
+}
+
+group = 'test.external'
+version = '1.0'
+
+android {
+    namespace 'test.external.producer'
+    compileSdk 35
+    defaultConfig { minSdk 23 }
+    publishing { singleVariant('release') }
+}
+
+dependencies {
+    compileOnly files('../libs/auto-service-annotation.jar')
+}
+
+publishing {
+    publications {
+        release(MavenPublication) {
+            artifactId = 'external-producer'
+            afterEvaluate { from components.release }
+        }
+    }
+    repositories {
+        maven { url = rootProject.layout.projectDirectory.dir('test-repo') }
+    }
+}

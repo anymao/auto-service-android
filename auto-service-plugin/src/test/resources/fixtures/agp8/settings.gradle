@@ -11,8 +11,9 @@ dependencyResolutionManagement {
     repositories {
         google()
         mavenCentral()
+        maven { url = uri('test-repo') }
     }
 }
 
 rootProject.name = 'agp8-functional-test'
-include ':app', ':feature'
+include ':app', ':feature', ':java-services', ':external-producer', ':external-bridge'
