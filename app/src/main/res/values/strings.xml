@@ -1,3 +1,8 @@
 <resources>
     <string name="app_name">auto-service-android</string>
+    <string name="demo_panel_title">服务加载演示</string>
+    <string name="demo_running">正在执行</string>
+    <string name="demo_run_again">重新执行</string>
+    <string name="demo_result_passed">%1$s：通过\n%2$s\n%3$s</string>
+    <string name="demo_result_failed">%1$s：失败\n%2$s\n%3$s</string>
 </resources>
