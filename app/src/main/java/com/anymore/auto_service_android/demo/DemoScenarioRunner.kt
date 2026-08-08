@@ -97,7 +97,10 @@ class DemoScenarioRunner(
     ): DemoScenarioResult = try {
         val (summary, details) = action()
         DemoScenarioResult(title, true, summary, details)
-    } catch (error: Throwable) {
+    } catch (error: InterruptedException) {
+        Thread.currentThread().interrupt()
+        throw error
+    } catch (error: Exception) {
         DemoScenarioResult(title, false, "执行失败", error.message ?: error.javaClass.name)
     }
 }

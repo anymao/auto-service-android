@@ -7,6 +7,7 @@ import com.anymore.auto.ServiceDiagnosticStatus
 import java.util.concurrent.Callable
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
+import org.junit.Assert.assertThrows
 import org.junit.Assert.assertTrue
 import org.junit.Test
 
@@ -37,14 +38,39 @@ class DemoScenarioRunnerTest {
         assertTrue(results.single { it.title == "服务诊断" }.passed)
     }
 
+    @Test
+    fun interruptedScenarioRethrowsAndRestoresInterruptFlag() {
+        Thread.currentThread().interrupt()
+        try {
+            assertThrows(InterruptedException::class.java) {
+                DemoScenarioRunner(FakeDemoServiceSource(), true).runAll()
+            }
+            assertTrue(Thread.currentThread().isInterrupted)
+        } finally {
+            Thread.interrupted()
+        }
+    }
+
+    @Test
+    fun fatalErrorsEscapeScenarioRunner() {
+        assertThrows(OutOfMemoryError::class.java) {
+            DemoScenarioRunner(
+                FakeDemoServiceSource(runnableLoadFailure = OutOfMemoryError("内存不足")),
+                true
+            ).runAll()
+        }
+    }
+
     private class FakeDemoServiceSource(
         private val failRunnableLoad: Boolean = false,
-        private val nonDebugDiagnostic: Boolean = false
+        private val nonDebugDiagnostic: Boolean = false,
+        private val runnableLoadFailure: Throwable? = null
     ) : DemoServiceSource {
 
         private val runnable = Runnable {}
 
         override fun runnables(alias: String): Iterable<Runnable> {
+            runnableLoadFailure?.let { throw it }
             if (failRunnableLoad && alias.isEmpty()) {
                 error("Runnable 加载失败")
             }
