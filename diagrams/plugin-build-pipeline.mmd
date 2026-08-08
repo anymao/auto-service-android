@@ -1,0 +1,18 @@
+graph TD
+    Plugin["AutoServiceRegisterPlugin"] -->|创建 DSL| Extension["AutoServiceExtension"]
+    Plugin -->|每个 Application 变体注册| Task["AutoServiceRegisterTask"]
+    Extension -->|require / exclude / logLevel| Task
+    Task -->|编排| Action["AutoServiceRegisterAction"]
+    Action -->|扫描 ALL scope| Scanner["ClassMetadataScanner"]
+    Scanner -->|写入来源| Origin["ClassOrigin"]
+    Scanner -->|写入候选| Candidate["ServiceCandidate"]
+    Scanner -->|生成| Catalog["ServiceCatalog"]
+    Action -->|校验 require| Validator["RequiredServiceValidator"]
+    Catalog --> Validator
+    Action -->|生成加载表| RegistryGen["ServiceRegistryGenerator"]
+    Action -->|生成诊断表| DiagnosticsGen["ServiceRegistryDiagnosticsGenerator"]
+    Catalog --> RegistryGen
+    Catalog --> DiagnosticsGen
+    Task -->|合并输入与生成类| JarWriter["DeterministicJarWriter"]
+    RegistryGen --> JarWriter
+    DiagnosticsGen --> JarWriter

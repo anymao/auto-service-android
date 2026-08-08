@@ -30,7 +30,7 @@ val callable = ServiceLoader.load<java.util.concurrent.Callable<Int>>().firstPri
 check(runnable === callable)
 ```
 
-生成器按实现类复用 singleton 供应器，因此不同接口获得同一个实例。`singleton=false` 时每个供应器访问都会创建实例；不要用它承载跨调用共享状态。
+生成器按实现类复用 singleton 供应器，因此不同接口获得同一个实例。`singleton=false` 以每次 `ServiceLoader.load()` 为边界创建惰性包装：同一个 loader 重复遍历复用实例，重新 `load()` 才创建新实例。不要用非单例服务承载跨加载调用共享状态。
 
 ## 用 `require()` 把缺失提前到构建期
 

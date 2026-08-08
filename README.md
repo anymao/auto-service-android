@@ -169,7 +169,7 @@ autoService {
 ## 排序、实例与冲突规则
 
 - `priority` 越小越先返回；相同 priority 按实现类全限定名排序。
-- `singleton=false` 的实现每次遍历供应器时创建；`singleton=true` 使用双重检查锁定惰性缓存。
+- `singleton=false` 以每次 `ServiceLoader.load()` 为实例边界：同一个 loader 重复遍历复用实例，重新 `load()` 才创建新实例；`singleton=true` 使用跨 loader、跨接口共享的线程安全惰性缓存。
 - 同一个 singleton 实现注册多个接口时，各接口复用同一个供应器和实例。
 - `ServiceRegistry`、`ServiceRegistryDiagnostics` 及其生成内部类是插件可替换的保留类。
 - 其他同名 class 来自不同输入时构建失败。不要依赖 classpath 顺序覆盖重复类。
@@ -203,6 +203,9 @@ autoService {
 
 ## 文档
 
+- [API 参考](docs/api-reference.md)：注解、加载、诊断 DTO、Java/Kotlin 调用和 Gradle DSL 的完整签名与约束。
+- [架构与类关系](docs/architecture.md)：模块边界、编译期/运行时流程、生成契约和可编辑类图。
+- [测试覆盖与缺口](docs/testing.md)：48 个测试的覆盖矩阵、现有证据和建议补测顺序。
 - [故障排查](docs/troubleshooting.md)：空结果、alias、排除、重复类、版本、Release 诊断和发布凭据。
 - [进阶指南](docs/advanced-guide.md)：priority、多接口单例、require、全范围依赖发现和构建缓存。
 - [变更日志](CHANGELOG.md)：版本升级与迁移说明。

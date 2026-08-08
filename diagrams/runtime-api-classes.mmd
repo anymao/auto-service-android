@@ -1,0 +1,14 @@
+graph LR
+    User["业务代码"] -->|声明实现| Annotation["AutoService 注解"]
+    User -->|load / diagnose| Loader["ServiceLoader<T>"]
+    Annotation -.->|编译期元数据| Implementation["服务实现类"]
+    Loader -->|get| Registry["ServiceRegistry"]
+    Loader -->|get| Diagnostics["ServiceRegistryDiagnostics"]
+    Registry -->|返回有序 Supplier| Lazy["ServiceLazy<T>"]
+    Registry -->|全局单例 Supplier| Singleton["SingletonServiceSupplier<T>"]
+    Lazy -->|创建| Implementation
+    Singleton -->|创建并缓存| Implementation
+    Diagnostics -->|构造| Report["ServiceDiagnosticReport"]
+    Report -->|包含 0..n| Entry["ServiceDiagnosticEntry"]
+    Entry -->|状态| Status["ServiceDiagnosticStatus"]
+    Report -->|可用性| Availability["ServiceDiagnosticAvailability"]
