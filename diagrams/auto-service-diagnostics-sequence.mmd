@@ -1,0 +1,23 @@
+sequenceDiagram
+    autonumber
+    participant App as 业务代码
+    participant Loader as ServiceLoader
+    participant Diagnostics as ServiceRegistryDiagnostics
+    participant Catalog as Debug 诊断静态表
+    participant Report as ServiceDiagnosticReport
+
+    App->>Loader: diagnose(ServiceType, alias)
+    Loader->>Diagnostics: get(ServiceType, alias)
+    alt 未应用 auto-service 插件
+        Diagnostics-->>Report: UNAVAILABLE_PLUGIN_NOT_APPLIED + 空列表
+    else debuggable=true
+        Diagnostics->>Catalog: 按服务类名查候选
+        Catalog-->>Diagnostics: REGISTERED + EXCLUDED 全量候选
+        Diagnostics-->>Report: AVAILABLE + 候选列表
+    else debuggable=false
+        Note over Diagnostics: Release 实现不生成候选静态表
+        Diagnostics-->>Report: UNAVAILABLE_IN_NON_DEBUG_BUILD + 空列表
+    end
+    Report-->>Loader: report
+    Loader-->>App: availability / entries / counts / aliases
+    Note over App,Report: 诊断只读取构建期元数据，不创建服务实例

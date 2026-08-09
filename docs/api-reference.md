@@ -1,11 +1,12 @@
 # auto-service-android API 参考
 
-本文列出 `0.0.13` 面向应用开发者的稳定 API、Gradle DSL 和生成契约。内部扫描器与生成器不属于兼容性承诺，参见[架构与类关系](architecture.md)。
+本文列出 `0.0.13` 面向应用开发者的稳定 API、Gradle DSL 和生成契约。完整的外部接入顺序、模块配置和验收清单见[接入指南](integration-guide.md)。内部扫描器与生成器不属于兼容性承诺，参见[架构与类关系](architecture.md)。
 
 ## 兼容基线与依赖
 
 | 项目 | 值 |
 | --- | --- |
+| 最低 Android API | 17 |
 | Android Gradle Plugin | 8.13.0 |
 | Gradle | 8.13 |
 | 构建 JDK | 17 |
@@ -14,7 +15,7 @@
 | 运行时坐标 | `com.anymore:auto-service-loader:0.0.13` |
 | Gradle 插件 ID | `auto-service` |
 
-`auto-service-loader` 的发布 POM 会传递 `auto-service-annotation` 和 `auto-service-registry`。四个组件必须使用相同版本。
+`auto-service-loader` 的发布 POM 会传递 `auto-service-annotation` 和 `auto-service-registry`。四个组件必须使用相同版本。运行时使用框架自有的 `ServiceFactory`，不要求接入方仅为本框架开启 core library desugaring。
 
 ## API 分层
 
@@ -24,7 +25,7 @@
 | 加载 API | `ServiceLoader<T>` | 是 |
 | 诊断 API | `ServiceDiagnosticReport`、`ServiceDiagnosticEntry`、两个诊断枚举 | 是，仅观测 |
 | Gradle DSL | `autoService { ... }` | 是，仅 Application 模块 |
-| 生成契约 | `ServiceRegistry`、`ServiceRegistryDiagnostics` | 否，由插件替换的保留类型 |
+| 生成契约 | `ServiceFactory`、`ServiceRegistry`、`ServiceRegistryDiagnostics` | 否，loader、registry 与生成代码之间的内部契约 |
 | 插件实现 | `com.anymore.auto.gradle.*` | 否，不承诺二进制兼容 |
 
 ## `@AutoService`
@@ -283,7 +284,7 @@ androidAutoServiceRegister<Variant>
 
 ## 生成保留类型
 
-`ServiceRegistry` 和 `ServiceRegistryDiagnostics` 在 registry 模块中提供可链接存根。插件会从最终 class JAR 中移除存根，再写入同名生成类。
+`ServiceFactory` 是兼容 API 17 的内部实例工厂。`ServiceRegistry` 和 `ServiceRegistryDiagnostics` 在 registry 模块中提供可链接存根；插件会从最终 class JAR 中移除存根，再写入同名生成类。
 
 业务代码不要直接调用它们，原因是：
 
@@ -293,6 +294,7 @@ androidAutoServiceRegister<Variant>
 
 ## 相关文档
 
+- [接入指南](integration-guide.md)
 - [架构与类关系](architecture.md)
 - [测试覆盖与缺口](testing.md)
 - [进阶指南](advanced-guide.md)

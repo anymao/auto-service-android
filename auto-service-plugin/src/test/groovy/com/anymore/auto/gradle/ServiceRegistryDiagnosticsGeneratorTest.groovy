@@ -30,6 +30,13 @@ class ServiceRegistryDiagnosticsGeneratorTest {
         assertFalse(source.contains('prod'))
     }
 
+    @Test
+    void 'Debug诊断生成代码不调用API24 Map默认方法'() {
+        String source = new ServiceRegistryDiagnosticsGenerator().generate(catalog(), true).toString()
+
+        assertFalse(source.contains('.getOrDefault('))
+    }
+
     private static ServiceCatalog catalog() {
         ServiceCatalog catalog = new ServiceCatalog()
         ClassOrigin registered = new ClassOrigin('sample.RegisteredTask', 'classes', 'sample/RegisteredTask.class', 'a')

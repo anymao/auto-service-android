@@ -7,6 +7,7 @@ import org.junit.Test
 
 import java.nio.file.Files
 import java.nio.file.StandardCopyOption
+import java.util.zip.ZipFile
 
 import static org.junit.Assert.assertFalse
 import static org.junit.Assert.assertTrue
@@ -65,6 +66,19 @@ gradle.projectsEvaluated {
         assertFalse('发布失败日志不应输出 Maven 用户名', result.output.contains('Maven Username:'))
     }
 
+    @Test
+    void sourcesJarIncludesMainAndPluginEntrySources() {
+        def result = runner(':auto-service-loader:sourcesJar').build()
+        assertTrue(result.output.contains('BUILD SUCCESSFUL'))
+
+        File sourcesJar = new File(testProjectDir, 'auto-service-loader/build/libs/auto-service-loader-0.0.13-sources.jar')
+        assertTrue('sources JAR 应该生成', sourcesJar.isFile())
+        new ZipFile(sourcesJar).withCloseable { archive ->
+            assertTrue('sources JAR 应包含 main 源码', archive.getEntry('sample/Main.java') != null)
+            assertTrue('sources JAR 应包含 pluginEntry 源码', archive.getEntry('sample/PluginEntry.java') != null)
+        }
+    }
+
     private static GradleRunner runner(String... arguments) {
         Map<String, String> environment = new LinkedHashMap<>(System.getenv())
         environment.remove('ALIYUN_USERNAME')
@@ -121,6 +135,24 @@ plugins { id 'java-library' }
 apply from: '../maven_publish.gradle'
 group = 'com.anymore'
 version = VERSION
+
+sourceSets {
+    pluginEntry {
+        java.srcDirs = ['src/pluginEntry/java']
+    }
+}
+'''
+        File mainSource = new File(loaderDirectory, 'src/main/java/sample/Main.java')
+        mainSource.parentFile.mkdirs()
+        mainSource.text = '''
+package sample;
+public final class Main {}
+'''
+        File pluginEntrySource = new File(loaderDirectory, 'src/pluginEntry/java/sample/PluginEntry.java')
+        pluginEntrySource.parentFile.mkdirs()
+        pluginEntrySource.text = '''
+package sample;
+public final class PluginEntry {}
 '''
     }
 

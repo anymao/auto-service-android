@@ -1,18 +1,16 @@
 graph TD
-    Plugin["AutoServiceRegisterPlugin"] -->|创建 DSL| Extension["AutoServiceExtension"]
-    Plugin -->|每个 Application 变体注册| Task["AutoServiceRegisterTask"]
+    App["Android Application"] -->|应用 auto-service| Plugin["AutoServiceRegisterPlugin"]
+    Plugin -->|创建 DSL| Extension["AutoServiceExtension"]
+    Plugin -->|监听全部 Application 变体| Variant["Android Components Variant"]
+    Variant -->|ScopedArtifacts Scope.ALL| Scope["项目 + 模块 + AAR/JAR classes"]
+    Plugin -->|每个变体注册| Task["AutoServiceRegisterTask"]
     Extension -->|require / exclude / logLevel| Task
-    Task -->|编排| Action["AutoServiceRegisterAction"]
-    Action -->|扫描 ALL scope| Scanner["ClassMetadataScanner"]
-    Scanner -->|写入来源| Origin["ClassOrigin"]
-    Scanner -->|写入候选| Candidate["ServiceCandidate"]
-    Scanner -->|生成| Catalog["ServiceCatalog"]
-    Action -->|校验 require| Validator["RequiredServiceValidator"]
-    Catalog --> Validator
-    Action -->|生成加载表| RegistryGen["ServiceRegistryGenerator"]
-    Action -->|生成诊断表| DiagnosticsGen["ServiceRegistryDiagnosticsGenerator"]
-    Catalog --> RegistryGen
-    Catalog --> DiagnosticsGen
-    Task -->|合并输入与生成类| JarWriter["DeterministicJarWriter"]
-    RegistryGen --> JarWriter
-    DiagnosticsGen --> JarWriter
+    Scope -->|输入 JAR 与目录| Task
+    Task -->|读取 class 元数据| Scanner["ClassMetadataScanner"]
+    Scanner -->|来源、候选、稳定排序| Catalog["ServiceCatalog"]
+    Catalog -->|构建期 require 校验| Validator["RequiredServiceValidator"]
+    Catalog -->|生成加载表和变体诊断表| Generators["Registry Generators"]
+    Generators -->|ServiceRegistry.java 等| Compiler["JDK JavaCompiler"]
+    Compiler -->|生成 class| Writer["DeterministicJarWriter"]
+    Scope -->|移除保留存根后合并| Writer
+    Writer -->|稳定的变换 classes.jar| Dex["D8 / R8 → APK"]

@@ -1,13 +1,11 @@
 package com.anymore.auto
 
-import java.util.function.Supplier
-
 /**
  * 单例服务提供者
  *
  * Created by anymore on 2022/5/20.
  */
-internal abstract class SingletonServiceSupplier<T> : Supplier<T> {
+internal abstract class SingletonServiceSupplier<T> : ServiceFactory<T> {
 
     @Volatile
     private var instance: T? = null

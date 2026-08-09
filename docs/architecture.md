@@ -39,6 +39,10 @@ Library 模块不应用插件。所有聚合只在最终 Application 变体执�
 
 源文件：[Mermaid](../diagrams/plugin-build-pipeline.mmd) · [Excalidraw](../diagrams/plugin-build-pipeline.excalidraw) · [PNG](../diagrams/plugin-build-pipeline.png)
 
+![编译期完整时序](../diagrams/auto-service-build-sequence.svg)
+
+时序图：[Mermaid](../diagrams/auto-service-build-sequence.mmd) · [PNG](../diagrams/auto-service-build-sequence.png)
+
 ### 编译期类职责
 
 | 类 | 直接职责 |
@@ -66,7 +70,7 @@ Library 模块不应用插件。所有聚合只在最终 Application 变体执�
 业务代码
   └─ ServiceLoader.load(Service, alias)
        └─ 生成的 ServiceRegistry.get(Service, alias)
-            └─ 有序 Supplier 列表
+            └─ 有序 ServiceFactory 列表
                  └─ 迭代时惰性创建或返回单例
 ```
 
@@ -76,12 +80,16 @@ Library 模块不应用插件。所有聚合只在最终 Application 变体执�
 
 源文件：[Mermaid](../diagrams/runtime-api-classes.mmd) · [Excalidraw](../diagrams/runtime-api-classes.excalidraw) · [PNG](../diagrams/runtime-api-classes.png)
 
+![运行时加载与实例化时序](../diagrams/auto-service-runtime-sequence.svg)
+
+时序图：[Mermaid](../diagrams/auto-service-runtime-sequence.mmd) · [PNG](../diagrams/auto-service-runtime-sequence.png)
+
 ### 运行时实例模型
 
-`ServiceRegistryGenerator` 为每个候选生成一个原始 `Supplier`：
+`ServiceRegistryGenerator` 为每个候选生成一个框架自有 `ServiceFactory`，避免运行时依赖 API 24 的 `java.util.function.Supplier`：
 
 - `singleton=true`：生成一个全局 `SingletonServiceSupplier`，同一实现注册多个接口时复用它；
-- `singleton=false`：生成普通 supplier。每次 `ServiceRegistry.get()` 再把它包装为新的 `ServiceLazy`。
+- `singleton=false`：生成普通工厂。每次 `ServiceRegistry.get()` 再把它包装为新的 `ServiceLazy`。
 
 因此非单例的边界是一次 `ServiceLoader.load()`，不是一次 `iterator.next()`。同一个 loader 多次遍历会返回相同对象；重新 `load()` 才得到新对象。
 
@@ -96,6 +104,10 @@ ServiceCatalog
 ```
 
 不可调试变体仍生成 `ServiceRegistryDiagnostics`，但只返回 `UNAVAILABLE_IN_NON_DEBUG_BUILD` 和空列表。这让同一份业务代码在所有变体都能链接，同时不把实现类名、alias 和排除规则带进 Release。
+
+![诊断 API 分支时序](../diagrams/auto-service-diagnostics-sequence.svg)
+
+时序图：[Mermaid](../diagrams/auto-service-diagnostics-sequence.mmd) · [PNG](../diagrams/auto-service-diagnostics-sequence.png)
 
 ## 重复类处理
 

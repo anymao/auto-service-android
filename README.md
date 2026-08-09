@@ -2,7 +2,7 @@
 
 `auto-service-android` 是 Android 编译期服务注册框架。实现类用 `@AutoService` 声明，Gradle 插件在应用构建时生成显式注册表；运行时不扫描 classpath，也不通过反射查找实现。
 
-当前版本为 `0.0.13`，支持基线为 **AGP 8.13.0 / Gradle 8.13 / JDK 17 / Kotlin 2.1.0**。插件只应用于 Android Application 模块；Android Library、Java/Kotlin 模块和外部 AAR/JAR 可以声明实现，但不应用插件。
+当前版本为 `0.0.13`，支持基线为 **Android API 17 / AGP 8.13.0 / Gradle 8.13 / JDK 17 / Kotlin 2.1.0**。运行时不依赖 API 24 的 `java.util.function`，接入方无需仅为 auto-service 开启 core library desugaring。插件只应用于 Android Application 模块；Android Library、Java/Kotlin 模块和外部 AAR/JAR 可以声明实现，但不应用插件。
 
 ## 能力与发现范围
 
@@ -205,7 +205,8 @@ autoService {
 
 - [API 参考](docs/api-reference.md)：注解、加载、诊断 DTO、Java/Kotlin 调用和 Gradle DSL 的完整签名与约束。
 - [架构与类关系](docs/architecture.md)：模块边界、编译期/运行时流程、生成契约和可编辑类图。
-- [测试覆盖与缺口](docs/testing.md)：48 个测试的覆盖矩阵、现有证据和建议补测顺序。
+- [接入指南](docs/integration-guide.md)：外部 Application、Library 的完整配置、使用流程和验收标准。
+- [测试覆盖与缺口](docs/testing.md)：当前 56 个测试的覆盖矩阵、验证证据和剩余缺口。
 - [故障排查](docs/troubleshooting.md)：空结果、alias、排除、重复类、版本、Release 诊断和发布凭据。
 - [进阶指南](docs/advanced-guide.md)：priority、多接口单例、require、全范围依赖发现和构建缓存。
 - [变更日志](CHANGELOG.md)：版本升级与迁移说明。

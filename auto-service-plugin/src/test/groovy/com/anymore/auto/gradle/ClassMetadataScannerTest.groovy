@@ -122,6 +122,30 @@ public final class LegacyTask implements Runnable {
         assertTrue(exception.message.contains('sample/Broken.class'))
     }
 
+    @Test
+    void '不同同名目录输入中的重复class不能被静默合并'() {
+        File compiledClasses = compileSources([
+                'sample/DuplicateTask.java': '''
+package sample;
+public final class DuplicateTask {}
+'''
+        ])
+        File first = new File(temporaryFolder.root, 'first/classes')
+        File second = new File(temporaryFolder.root, 'second/classes')
+        [first, second].each { File destination ->
+            File duplicate = new File(destination, 'sample/DuplicateTask.class')
+            duplicate.parentFile.mkdirs()
+            duplicate.bytes = new File(compiledClasses, 'sample/DuplicateTask.class').bytes
+        }
+
+        GradleException exception = assertThrows(GradleException) {
+            new ClassMetadataScanner(Collections.emptySet()).scan([first, second])
+        }
+
+        assertTrue(exception.message.contains(first.canonicalPath))
+        assertTrue(exception.message.contains(second.canonicalPath))
+    }
+
     private File compileSources(Map<String, String> sources) {
         File sourceRoot = temporaryFolder.newFolder('src-' + UUID.randomUUID())
         File classes = temporaryFolder.newFolder('classes-' + UUID.randomUUID())

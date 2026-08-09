@@ -1,0 +1,40 @@
+sequenceDiagram
+    autonumber
+    participant Gradle as Gradle 配置阶段
+    participant Plugin as AutoServiceRegisterPlugin
+    participant AGP as Android Components / Variant
+    participant Task as AutoServiceRegisterTask
+    participant Scan as Scanner + ServiceCatalog
+    participant Gen as 两个 Registry Generator
+    participant Javac as JDK JavaCompiler
+    participant Writer as DeterministicJarWriter
+    participant Dex as D8 / R8
+
+    Gradle->>Plugin: apply(Application)
+    Plugin->>Gradle: 创建 autoService DSL
+    Plugin->>AGP: onVariants(selector.all())
+    loop 每个 Application 变体
+        AGP-->>Plugin: variant(name, debuggable, compileClasspath)
+        Plugin->>Task: 注册 androidAutoServiceRegister<Variant>
+        Plugin->>AGP: Scope.ALL 的 CLASSES toTransform
+        AGP->>Task: inputJars + inputDirectories
+        Gradle->>Task: require / exclude / sourceCompatibility / logLevel
+        Task->>Scan: 按规范路径扫描所有 class
+        Scan->>Scan: 读取 AutoService 元数据、来源与 SHA-256
+        Scan->>Scan: 检测普通重复类、排序候选
+        Scan-->>Task: ServiceCatalog
+        Task->>Scan: 校验启用的 require 条件
+        alt require 或重复类失败
+            Scan--xGradle: GradleException，中止当前变体
+        else 校验通过
+            Task->>Gen: 生成 ServiceRegistry.java
+            Task->>Gen: 按 debuggable 生成诊断实现
+            Gen-->>Task: 两份 Java 源码
+            Task->>Javac: 使用变体 classpath 编译生成源码
+            Javac-->>Task: 框架保留类及内部类
+            Task->>Writer: 输入 classes + 生成 classes
+            Writer->>Writer: 删除旧 Registry 存根并拒绝普通重复项
+            Writer-->>AGP: 稳定排序、时间戳固定的 classes.jar
+            AGP->>Dex: 继续 dex / shrink / package
+        end
+    end

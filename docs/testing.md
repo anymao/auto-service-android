@@ -1,6 +1,6 @@
 # 测试覆盖与缺口
 
-本文基于 `0.0.13` 分支的 16 个测试代码文件和 17 个 TestKit 夹具文件，说明现有 48 个 `@Test` 验证了什么，以及哪些公开行为仍缺少自动化证据。
+本文基于 `0.0.13` 分支当前测试代码，说明现有 56 个 `@Test` 验证了什么，以及哪些公开行为仍缺少自动化证据。
 
 测试数量不等于行覆盖率。本项目尚未配置覆盖率插件，下面的结论来自逐项读取断言、夹具和生产源码。
 
@@ -27,22 +27,23 @@
 ./gradlew :app:connectedDebugAndroidTest
 ```
 
-插件测试包含多次嵌套 Gradle/AGP 构建，首次运行可能需要数分钟。前一组 JVM 命令执行 47 个测试；第 48 个是需要 Android 设备的 instrumentation 测试。
+插件测试包含多次嵌套 Gradle/AGP 构建，首次运行可能需要数分钟。当前 JVM 测试共 55 个；另有 1 个需要 Android 设备的 instrumentation 测试。
 
 ## 本次审查结果
 
-2026-08-08 在 Gradle 8.13 / JDK 17 下执行 JVM/TestKit 命令和 Debug/Release assemble：
+2026-08-09 在 Gradle 8.13 / JDK 17 下执行 JVM/TestKit 命令、Debug/Release assemble 和 `Pixel_Fold_API_31` 模拟器测试：
 
 | 指标 | 结果 |
 | --- | ---: |
-| JVM/TestKit 测试 | 47 |
+| JVM/TestKit 测试 | 55 |
 | failures | 0 |
 | errors | 0 |
 | skipped | 0 |
 | Debug APK | 通过 |
 | Release APK | 通过 |
+| connectedDebugAndroidTest | 1 个测试通过 |
 
-没有连接 Android 设备，因此未执行 `connectedDebugAndroidTest`。该 instrumentation 用例只验证 demo package name，不影响库核心行为的审查结论。
+instrumentation 用例目前是 demo package name smoke test；它已在真实模拟器执行通过，但不替代库核心的 JVM/TestKit 覆盖。
 
 ## 测试分布
 
@@ -50,12 +51,11 @@
 | --- | ---: | --- |
 | Registry 诊断模型 | 3 | `ServiceDiagnosticReportTest` |
 | Loader | 2 | `ServiceLoaderDiagnosticTest`、`ServiceLazyTest` |
-| Plugin 单元与生成器 | 27 | scanner、catalog、validator、generator、writer、task、extension、log |
-| Plugin TestKit 功能测试 | 11 | `AutoServiceAgp8FunctionalTest` |
-| 发布配置 | 3 | `PublicationConfigurationTest` |
-| Demo app 模板测试 | 2 | `ExampleUnitTest`、`ExampleInstrumentedTest` |
+| Plugin 单元、TestKit 与发布配置 | 43 | scanner、catalog、validator、generator、writer、task、extension、功能夹具、发布配置 |
+| Demo app JVM 测试 | 7 | `ExampleUnitTest`、`DemoScenarioRunnerTest` 等 |
+| Demo app instrumentation | 1 | `ExampleInstrumentedTest` |
 | Annotation | 0 | 暂无独立测试 |
-| 合计 | 48 | 不含 fixture 中用于生成 class 的示例方法 |
+| 合计 | 56 | 不含 fixture 中用于生成 class 的示例方法 |
 
 ## 已覆盖行为
 
@@ -81,6 +81,7 @@
 | priority 优先、类名次序稳定 | `ServiceCatalogTest`、`AutoServiceExtensionTest` |
 | 排除候选保留命中规则 | `ClassMetadataScannerTest` |
 | 损坏 class 报告容器和 entry | `ClassMetadataScannerTest` |
+| 两个同名目录输入仍报告重复 class | `ClassMetadataScannerTest` |
 | require 缺失、全部排除、alias 不匹配分别给出行动提示 | `RequiredServiceValidatorTest` |
 | 普通重复类报告两个来源，保留生成类允许替换 | `ServiceCatalogTest`、`DeterministicJarWriterTest`、TestKit |
 
@@ -95,6 +96,7 @@
 | Debug/Release 五类来源顺序和 alias 一致 | fixture 的 `verifyAllScopeRuntime` |
 | 第二次运行 UP-TO-DATE，清理输出后 FROM-CACHE，SHA-256 不变 | `transformIsUpToDateAndRestoredFromCacheWithStableHash` |
 | Release assemble 与 lint model 没有隐式任务依赖错误 | `releaseBuildTransformsClassesWithoutImplicitDependency` |
+| 运行时类型和生成代码不引用 API 24 的 `java.util.function` 或 `Map` 默认方法 | `AndroidApiCompatibilityTest`、两个生成器测试、Debug/Release DEX 检查 |
 
 ### 发布安全
 
@@ -103,6 +105,7 @@
 | 无发布凭据时 `projects` 可配置 | `projectsTaskSucceedsWithoutPublishingCredentials` |
 | 无发布凭据时普通构建可执行 | `appDebugBuildSucceedsWithoutPublishingCredentials` |
 | publish 在写仓库前以明确错误失败且不输出用户名 | `publishTaskRejectsMissingCredentialsBeforeRepositoryWrite` |
+| sources JAR 同时包含 main 与 pluginEntry 源码 | `sourcesJarIncludesMainAndPluginEntrySources` |
 
 ## 当前缺口
 

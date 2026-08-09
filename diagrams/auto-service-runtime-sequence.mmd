@@ -1,0 +1,43 @@
+sequenceDiagram
+    autonumber
+    participant App as 业务代码
+    participant Loader as ServiceLoader
+    participant Registry as 生成的 ServiceRegistry
+    participant Entry as ServiceSupplier 注册项
+    participant Provider as ServiceLazy / SingletonServiceSupplier
+    participant Factory as ServiceFactory
+    participant Impl as 服务实现类
+
+    App->>Loader: load(ServiceType, alias)
+    Loader->>Registry: get(ServiceType, alias)
+    Note over Registry: 首次加载类时执行静态注册，顺序为 priority 再类名
+    Registry->>Registry: 按类型取注册项并精确过滤非空 alias
+    loop 每个匹配注册项
+        Registry->>Entry: getSupplier()
+        alt singleton=true
+            Entry-->>Registry: 全局 SingletonServiceSupplier
+        else singleton=false
+            Entry-->>Registry: 原始 ServiceFactory
+            Registry->>Provider: 新建 ServiceLazy(factory)
+        end
+    end
+    Registry-->>Loader: 不可变的有序 ServiceFactory 列表
+    Loader-->>App: Iterable<ServiceType>
+
+    App->>Loader: iterator.next() / firstPriority
+    Loader->>Provider: get()
+    alt ServiceLazy 当前缓存为空
+        Provider->>Factory: get()
+        Factory->>Impl: 调用无参构造函数
+        Impl-->>Provider: 实例
+        Provider->>Provider: 双重检查并缓存
+    else SingletonServiceSupplier 当前缓存为空
+        Provider->>Impl: newInstance() 调用无参构造函数
+        Impl-->>Provider: 实例
+        Provider->>Provider: 双重检查并缓存
+    else 已有缓存
+        Provider->>Provider: 直接读取缓存
+    end
+    Provider-->>App: 服务实例
+    Note over Loader,Provider: 非单例按每次 load 缓存；singleton=true 跨 load、跨接口共享
+    Note over Loader,Registry: lastPriority 遍历整个 Iterable，会触发所有候选 get()

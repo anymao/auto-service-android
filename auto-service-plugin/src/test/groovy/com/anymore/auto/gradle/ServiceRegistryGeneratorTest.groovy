@@ -38,6 +38,17 @@ class ServiceRegistryGeneratorTest {
         assertTrue(source.contains('register(Callable.class'))
     }
 
+    @Test
+    void '生成注册表兼容minSdk17且不要求core library desugaring'() {
+        String source = new ServiceRegistryGenerator()
+                .generate(catalogWithRegisteredAndExcluded())
+                .toString()
+
+        assertFalse(source.contains('java.util.function'))
+        assertFalse(source.contains('.computeIfAbsent('))
+        assertFalse(source.contains('.getOrDefault('))
+    }
+
     private static ServiceCatalog catalogWithRegisteredAndExcluded() {
         ServiceCatalog catalog = new ServiceCatalog()
         ClassOrigin registered = new ClassOrigin('sample.RegisteredTask', 'classes', 'sample/RegisteredTask.class', 'a')

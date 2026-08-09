@@ -15,8 +15,6 @@ import com.squareup.javapoet.WildcardTypeName
 
 import javax.lang.model.element.Modifier
 import java.util.concurrent.atomic.AtomicLong
-import java.util.function.Function
-import java.util.function.Supplier
 
 /** 生成服务注册表，不读取构建环境。 */
 final class ServiceRegistryGenerator {
@@ -28,6 +26,7 @@ final class ServiceRegistryGenerator {
         final ClassName serviceSupplierClassName = ClassName.get(pkg, 'ServiceSupplier')
         final ClassName singletonServiceSupplierClassName = ClassName.get(pkg, 'SingletonServiceSupplier')
         final ClassName serviceLazyClassName = ClassName.get(pkg, 'ServiceLazy')
+        final ClassName serviceFactoryClassName = ClassName.get(pkg, 'ServiceFactory')
 
         FieldSpec serviceSuppliers = FieldSpec.builder(
                 ParameterizedTypeName.get(
@@ -41,30 +40,18 @@ final class ServiceRegistryGenerator {
                 .initializer('new $T<>()', LinkedHashMap.class)
                 .build()
 
-        TypeSpec newListFunction = TypeSpec.anonymousClassBuilder('')
-                .addSuperinterface(ParameterizedTypeName.get(
-                        ClassName.get(Function.class),
-                        ParameterizedTypeName.get(ClassName.get(Class.class), anyType),
-                        ParameterizedTypeName.get(
-                                ClassName.get(List.class),
-                                ParameterizedTypeName.get(serviceSupplierClassName, anyType))))
-                .addMethod(MethodSpec.methodBuilder('apply')
-                        .addModifiers(Modifier.PUBLIC)
-                        .addAnnotation(Override.class)
-                        .addParameter(ParameterizedTypeName.get(ClassName.get(Class.class), anyType), 'clazz')
-                        .addStatement('return new $T<>()', LinkedList.class)
-                        .returns(ParameterizedTypeName.get(
-                                ClassName.get(List.class),
-                                ParameterizedTypeName.get(serviceSupplierClassName, anyType)))
-                        .build())
-                .build()
-
         MethodSpec register = MethodSpec.methodBuilder('register')
                 .addModifiers(Modifier.PRIVATE, Modifier.STATIC, Modifier.SYNCHRONIZED)
                 .addTypeVariable(typeOfS)
                 .addParameter(ParameterizedTypeName.get(ClassName.get(Class.class), typeOfS), 'clazz')
                 .addParameter(ParameterizedTypeName.get(serviceSupplierClassName, typeOfS), 'supplier')
-                .addStatement('serviceSuppliers.computeIfAbsent(clazz, $L).add(supplier)', newListFunction)
+                .addStatement('$T<$T<$T>> suppliers = serviceSuppliers.get(clazz)',
+                        List.class, serviceSupplierClassName, anyType)
+                .beginControlFlow('if (suppliers == null)')
+                .addStatement('suppliers = new $T<>()', LinkedList.class)
+                .addStatement('serviceSuppliers.put(clazz, suppliers)')
+                .endControlFlow()
+                .addStatement('suppliers.add(supplier)')
                 .returns(TypeName.VOID)
                 .build()
 
@@ -75,9 +62,11 @@ final class ServiceRegistryGenerator {
                         ParameterizedTypeName.get(ClassName.get(Class.class), typeOfS), 'clazz').build())
                 .addParameter(String.class, 'alias')
                 .addCode(CodeBlock.builder()
-                        .addStatement('final $T<$T<$T>> allSuppliers = serviceSuppliers.getOrDefault(clazz, new $T<$T<$T>>())',
-                                List.class, serviceSupplierClassName, anyType,
-                                ArrayList.class, serviceSupplierClassName, anyType)
+                        .addStatement('$T<$T<$T>> allSuppliers = serviceSuppliers.get(clazz)',
+                                List.class, serviceSupplierClassName, anyType)
+                        .beginControlFlow('if (allSuppliers == null)')
+                        .addStatement('allSuppliers = $T.emptyList()', Collections.class)
+                        .endControlFlow()
                         .addStatement('final $T<$T<$T>> suppliers = new $T<>()',
                                 List.class, serviceSupplierClassName, anyType, LinkedList.class)
                         .beginControlFlow('if (alias != null && alias.length() > 0)')
@@ -95,7 +84,7 @@ final class ServiceRegistryGenerator {
                                 ArrayList.class)
                         .beginControlFlow('for ($T<$T> supplier : suppliers)', serviceSupplierClassName, anyType)
                         .addStatement('final $T<$T> realSupplier = ($T<$T>) supplier.getSupplier()',
-                                Supplier.class, typeOfS, Supplier.class, typeOfS)
+                                serviceFactoryClassName, typeOfS, serviceFactoryClassName, typeOfS)
                         .beginControlFlow('if (realSupplier instanceof $T)', singletonServiceSupplierClassName)
                         .addStatement('services.add(($T) realSupplier)', singletonServiceSupplierClassName)
                         .nextControlFlow('else')
@@ -109,7 +98,11 @@ final class ServiceRegistryGenerator {
                         ParameterizedTypeName.get(singletonServiceSupplierClassName, typeOfS)))
                 .build()
 
-        CodeBlock staticRegistration = registrationCode(catalog, serviceSupplierClassName, singletonServiceSupplierClassName)
+        CodeBlock staticRegistration = registrationCode(
+                catalog,
+                serviceSupplierClassName,
+                singletonServiceSupplierClassName,
+                serviceFactoryClassName)
         TypeSpec registry = TypeSpec.classBuilder('ServiceRegistry')
                 .addJavadoc('Automatically generated file by auto-service. DO NOT MODIFY')
                 .addModifiers(Modifier.PUBLIC, Modifier.FINAL)
@@ -132,7 +125,8 @@ final class ServiceRegistryGenerator {
     private static CodeBlock registrationCode(
             ServiceCatalog catalog,
             ClassName serviceSupplierClassName,
-            ClassName singletonServiceSupplierClassName) {
+            ClassName singletonServiceSupplierClassName,
+            ClassName serviceFactoryClassName) {
         CodeBlock.Builder builder = CodeBlock.builder()
         Map<ClassName, String> singletonSuppliers = new LinkedHashMap<>()
         AtomicLong supplierCounter = new AtomicLong()
@@ -142,7 +136,7 @@ final class ServiceRegistryGenerator {
                 ClassName implementationType = ClassName.bestGuess(candidate.implementationClassName)
                 if (!candidate.singleton) {
                     TypeSpec supplier = TypeSpec.anonymousClassBuilder('')
-                            .addSuperinterface(ParameterizedTypeName.get(ClassName.get(Supplier.class), implementationType))
+                            .addSuperinterface(ParameterizedTypeName.get(serviceFactoryClassName, implementationType))
                             .addMethod(MethodSpec.methodBuilder('get')
                                     .addAnnotation(Override.class)
                                     .addModifiers(Modifier.PUBLIC)
@@ -168,7 +162,7 @@ final class ServiceRegistryGenerator {
                             .build()
                     supplierName = "supplier${supplierCounter.getAndIncrement()}"
                     builder.addStatement('final $T<$T> $N = $L',
-                            Supplier.class, implementationType, supplierName, singletonSupplier)
+                            serviceFactoryClassName, implementationType, supplierName, singletonSupplier)
                     singletonSuppliers.put(implementationType, supplierName)
                 }
                 builder.addStatement('register($T.class, new $T<$T>($S, $N))',

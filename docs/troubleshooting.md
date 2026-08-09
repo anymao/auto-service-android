@@ -71,6 +71,41 @@ implementation 'com.anymore:auto-service-loader:0.0.13'
 
 运行 `./gradlew :app:dependencies`，确认没有旧版本被约束或传递依赖选中。修复后使用 `--refresh-dependencies` 只在确实怀疑缓存坐标错误时重试。
 
+## instrumentation 在 manifest merger 阶段失败
+
+如果看到 `InstrumentationActivityInvoker` 的 Bootstrap/Empty Activity 缺少 `android:exported`，先检查 AndroidX Test 依赖是否仍解析到旧的 `androidx.test:core:1.3.0`。当前工程使用：
+
+```groovy
+androidTestImplementation 'androidx.test.ext:junit:1.1.5'
+androidTestImplementation 'androidx.test.espresso:espresso-core:3.5.1'
+```
+
+用下面的命令确认实际解析版本：
+
+```bash
+./gradlew :app:dependencies --configuration debugAndroidTestRuntimeClasspath
+```
+
+应看到 `androidx.test:core:1.5.0`，然后再执行：
+
+```bash
+./gradlew :app:connectedDebugAndroidTest
+```
+
+不要用临时覆盖测试 Activity 的 manifest 属性掩盖旧依赖链；如果仍失败，记录完整依赖图、AGP、targetSdk 和设备系统版本。
+
+## sources JAR 缺少插件入口源码
+
+发布的 `auto-service-plugin-0.0.13-sources.jar` 应同时包含 main Groovy 源码和 `pluginEntry` 中的 `AutoServiceRegisterPlugin.kt`。本版本的发布脚本会在项目配置完成后绑定自定义源集。可用以下命令检查：
+
+```bash
+./gradlew :auto-service-plugin:sourcesJar
+unzip -l auto-service-plugin/build/libs/auto-service-plugin-0.0.13-sources.jar \
+  | rg 'AutoServiceRegisterPlugin.kt|ClassMetadataScanner.groovy'
+```
+
+如果二次封装自己的发布脚本，应保留 `pluginEntry` 源码，不能只取 `sourceSets.main.allSource`。
+
 ## Release 中诊断不可用
 
 这是预期行为，不是加载失败：

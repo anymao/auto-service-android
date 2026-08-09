@@ -1,14 +1,17 @@
-graph LR
+graph TD
     User["业务代码"] -->|声明实现| Annotation["AutoService 注解"]
     User -->|load / diagnose| Loader["ServiceLoader<T>"]
     Annotation -.->|编译期元数据| Implementation["服务实现类"]
-    Loader -->|get| Registry["ServiceRegistry"]
-    Loader -->|get| Diagnostics["ServiceRegistryDiagnostics"]
-    Registry -->|返回有序 Supplier| Lazy["ServiceLazy<T>"]
-    Registry -->|全局单例 Supplier| Singleton["SingletonServiceSupplier<T>"]
-    Lazy -->|创建| Implementation
-    Singleton -->|创建并缓存| Implementation
+    Registry["生成的 ServiceRegistry"] -->|静态注册| RegEntry["ServiceSupplier: alias + factory"]
+    Loader -->|type + alias| Registry
+    Registry -->|过滤并返回有序工厂| Factory["ServiceFactory<T>"]
+    RegEntry --> Factory
+    Factory -->|非全局单例，每次 load 包装| Lazy["ServiceLazy<T>"]
+    Factory -->|singleton=true 直接复用| Singleton["SingletonServiceSupplier<T>"]
+    Lazy -->|首次 get 创建，loader 内复用| Implementation
+    Singleton -->|首次 get 创建，全局复用| Implementation
+    Loader -->|diagnose| Diagnostics["生成的 ServiceRegistryDiagnostics"]
     Diagnostics -->|构造| Report["ServiceDiagnosticReport"]
-    Report -->|包含 0..n| Entry["ServiceDiagnosticEntry"]
-    Entry -->|状态| Status["ServiceDiagnosticStatus"]
+    Report -->|包含 0..n| DiagEntry["ServiceDiagnosticEntry"]
+    DiagEntry -->|状态| Status["REGISTERED / EXCLUDED"]
     Report -->|可用性| Availability["ServiceDiagnosticAvailability"]

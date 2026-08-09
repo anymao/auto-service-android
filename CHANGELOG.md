@@ -23,6 +23,15 @@
 - 删除仓库内私服凭据和用户名日志。普通构建不需要私服凭据，发布任务在网络请求前校验环境变量或用户级 Gradle 属性。
 - 历史中出现过的旧凭据必须由仓库所有者在服务端吊销并轮换，这是发布 `0.0.13` 前的人工门禁。
 
+### 审查后续修复
+
+- 修复 `minSdk 17` 下运行时仍引用 API 24 `java.util.function.Supplier`、`Function` 和 `Map` 默认方法的问题；改用框架自有 `ServiceFactory` 与 API 17 可用的集合操作，接入方无需仅为 auto-service 开启 core library desugaring。
+- 修复两个不同但 basename 相同的目录或 JAR 输入被误判为同一来源的问题；重复普通 class 现在会报告两个规范化真实路径。
+- 修复插件 `-sources.jar` 遗漏 `pluginEntry` Kotlin 入口的问题，源码包现在包含 `AutoServiceRegisterPlugin.kt`。
+- 将 demo instrumentation 测试依赖升级到 AndroidX Test `junit:1.1.5` 与 Espresso `3.5.1`，解决旧 `core:1.3.0` 在 targetSdk 33 下的 manifest merger 失败。
+- 删除插件模块 Gradle 属性文件中的历史凭据注释；发布凭据继续只允许由环境变量或用户级 Gradle 属性注入。
+- 新增[外部接入指南](docs/integration-guide.md)，并补充重复 class、源码包和 instrumentation 的回归测试。
+
 ### 升级说明
 
 - 插件、loader、annotation 和 registry 必须一起升级到 `0.0.13`。

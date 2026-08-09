@@ -7,15 +7,13 @@ import java.util.concurrent.ConcurrentLinkedQueue
 import java.util.concurrent.CountDownLatch
 import java.util.concurrent.TimeUnit
 import java.util.concurrent.atomic.AtomicInteger
-import java.util.function.Supplier
-
 class ServiceLazyTest {
 
     @Test
     fun `并发访问时只创建一次服务实例`() {
         val createCount = AtomicInteger()
         val expected = Any()
-        val lazyService = ServiceLazy(Supplier {
+        val lazyService = ServiceLazy(ServiceFactory {
             createCount.incrementAndGet()
             expected
         })

@@ -54,7 +54,7 @@ final class ClassMetadataScanner {
             relativeEntry(root, left) <=> relativeEntry(root, right)
         }.each { File classFile ->
             String entryName = relativeEntry(root, classFile)
-            scanClass(catalog, root.name, entryName, classFile.bytes)
+            scanClass(catalog, root.canonicalPath, entryName, classFile.bytes)
         }
     }
 
@@ -65,7 +65,7 @@ final class ClassMetadataScanner {
             }.toList().sort { JarEntry left, JarEntry right -> left.name <=> right.name }
             entries.each { JarEntry entry ->
                 jar.getInputStream(entry).withCloseable { InputStream stream ->
-                    scanClass(catalog, input.name, entry.name, stream.bytes)
+                    scanClass(catalog, input.canonicalPath, entry.name, stream.bytes)
                 }
             }
         }

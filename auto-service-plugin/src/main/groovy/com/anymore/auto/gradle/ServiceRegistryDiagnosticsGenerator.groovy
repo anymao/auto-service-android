@@ -78,8 +78,10 @@ final class ServiceRegistryDiagnosticsGenerator {
                         com.squareup.javapoet.WildcardTypeName.subtypeOf(Object.class)), 'clazz')
                 .addParameter(String.class, 'alias')
                 .addStatement('$T normalizedAlias = alias == null ? $S : alias', String.class, '')
-                .addStatement('$T entries = ENTRIES_BY_SERVICE.getOrDefault(clazz.getName(), $T.<$T>emptyList())',
-                        entryList, Collections.class, ENTRY)
+                .addStatement('$T entries = ENTRIES_BY_SERVICE.get(clazz.getName())', entryList)
+                .beginControlFlow('if (entries == null)')
+                .addStatement('entries = $T.emptyList()', Collections.class)
+                .endControlFlow()
                 .addStatement('return new $T(clazz.getName(), normalizedAlias, $T.AVAILABLE, entries)',
                         REPORT, AVAILABILITY)
                 .build()
